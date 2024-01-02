@@ -1,0 +1,47 @@
+#include "json_types.h"
+#include <CL/cl.h>
+
+json_object *AddDevices(json_object *Platform);
+json_object *AddDevice(json_object *Devices);
+void AddDevice_Id(json_object *Device, cl_device_id device);
+void AddDevice_PlatformId(json_object *Device, cl_device_id device);
+void AddDevice_Name(json_object *Device, cl_device_id device);
+void AddDevice_Vendor(json_object *Device, cl_device_id device);
+void AddDevice_Version(json_object *Device, cl_device_id device);
+void AddDevice_DriverVersion(json_object *Device, cl_device_id device);
+void AddDevice_Profile(json_object *Device, cl_device_id device);
+void AddDevice_Types(json_object *Device, cl_device_id device);
+void AddDevice_AtomicMemoryCapabilities(json_object *Device, cl_device_id device);
+void AddDevice_AtomicFenceCapabilities(json_object *Device, cl_device_id device);
+void AddDevice_AffinityDomain(json_object *Device, cl_device_id device);
+void AddDevice_AddressBits(json_object *Device, cl_device_id device);
+void AddDevice_Available(json_object *Device, cl_device_id device);
+void AddDevice_BuiltInKernels(json_object *Device, cl_device_id device);
+void AddDevice_CompilerAvailable(json_object *Device, cl_device_id device);
+void AddDevice_DoubleFPConfig(json_object *Device, cl_device_id device);
+void AddDevice_EndianLittle(json_object *Device, cl_device_id device);
+void AddDevice_EnqueueCapabilities(json_object *Device, cl_device_id device);
+void AddDevice_ErrorCorrectionSupport(json_object *Device, cl_device_id device);
+void AddDevice_ExecCapabilities(json_object *Device, cl_device_id device);
+void AddDevice_Extensions(json_object *Device, cl_device_id device);
+void AddDevice_GenericAddressSpaceSupport(json_object *Device, cl_device_id device);
+void AddDevice_GlobalMemSize(json_object *Device, cl_device_id device);
+void AddDevice_GlobalMemCacheSize(json_object *Device, cl_device_id device);
+void AddDevice_GlobalMemCachelineSize(json_object *Device, cl_device_id device);
+void AddDevice_GlobalVariablePreferredTotalSize(json_object *Device, cl_device_id device);
+void AddDevice_IlVersion(json_object *Device, cl_device_id device);
+void AddDevice_IlsWithVersion(json_object *Device, cl_device_id device);
+void AddDevice_ImageBaseAddressAlignment(json_object *Device, cl_device_id device);
+void AddDevice_ImageMaxArraySize(json_object *Device, cl_device_id device);
+void AddDevice_ImageMaxBufferSize(json_object *Device, cl_device_id device);
+void AddDevice_ImagePitchAlignment(json_object *Device, cl_device_id device);
+void AddDevice_ImageSupport(json_object *Device, cl_device_id device);
+void AddDevice_Image2dMaxHeight(json_object *Device, cl_device_id device);
+void AddDevice_Image2dMaxWidth(json_object *Device, cl_device_id device);
+void AddDevice_Image3dMaxDepth(json_object *Device, cl_device_id device);
+void AddDevice_Image3dMaxHeight(json_object *Device, cl_device_id device);
+void AddDevice_Image3dmaxWidth(json_object *Device, cl_device_id device);
+void AddDevice_LatestConformanceVersionPassed(json_object *Device, cl_device_id device);
+void AddDevice_LinkerAvailable(json_object *Device, cl_device_id device);
+void AddDevice_LocalMemSize(json_object *Device, cl_device_id device);
+void AddDevice_LocalMemType(json_object *Device, cl_device_id device);

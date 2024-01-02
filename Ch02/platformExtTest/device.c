@@ -26,3 +26,8 @@ GArray *getDevices(cl_platform_id platform) {
   }
   return devices;
 }
+
+cl_device_id currDevice(GArray *devices, int i) {
+  cl_device_id device = g_array_index(devices, cl_device_id, i);
+  return device;
+}

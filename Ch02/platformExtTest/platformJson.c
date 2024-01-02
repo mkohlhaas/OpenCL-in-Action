@@ -2,6 +2,8 @@
 #include "platformCL.h"
 #include "version.h"
 #include <CL/cl.h>
+#include <json_types.h>
+#include <stdio.h>
 
 json_object *CreateRoot() { return json_object_new_object(); }
 
@@ -18,36 +20,36 @@ json_object *AddPlatform(json_object *Platforms) {
   return Platform;
 }
 
-void AddPlatformId(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_Id(json_object *Platform, cl_platform_id platform) {
   json_object_object_add(Platform, "id", json_object_new_uint64((intptr_t)platform));
 }
 
-void AddPlatformName(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_Name(json_object *Platform, cl_platform_id platform) {
   char *name = platformName(platform);
   json_object_object_add(Platform, "name", json_object_new_string(name));
 }
 
-void AddPlatformProfile(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_Profile(json_object *Platform, cl_platform_id platform) {
   char *profile = platformProfile(platform);
   json_object_object_add(Platform, "profile", json_object_new_string(profile));
 }
 
-void AddPlatformVendor(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_Vendor(json_object *Platform, cl_platform_id platform) {
   char *vendor = platformVendor(platform);
   json_object_object_add(Platform, "vendor", json_object_new_string(vendor));
 }
 
-void AddPlatformVersion(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_Version(json_object *Platform, cl_platform_id platform) {
   char *version = platformVersion(platform);
   json_object_object_add(Platform, "version", json_object_new_string(version));
 }
 
-void AddPlatformHostTimerResolution(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_HostTimerResolution(json_object *Platform, cl_platform_id platform) {
   cl_ulong htr = platformHostTimerResolution(platform);
   json_object_object_add(Platform, "host_timer_resolution", json_object_new_uint64(htr));
 }
 
-void AddPlatformExtensions(json_object *Platform, cl_platform_id platform) {
+void AddPlatform_Extensions(json_object *Platform, cl_platform_id platform) {
   size_t numExtensions;
   cl_name_version *extensions = platformExtensions(platform, &numExtensions);
   json_object *Extensions = json_object_new_array();
@@ -59,3 +61,5 @@ void AddPlatformExtensions(json_object *Platform, cl_platform_id platform) {
   }
   json_object_object_add(Platform, "extensions", Extensions);
 }
+
+void PrintRoot(json_object *Root) { printf("%s\n", json_object_to_json_string_ext(Root, JSON_C_TO_STRING_PLAIN)); }

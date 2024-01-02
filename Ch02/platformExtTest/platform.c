@@ -10,3 +10,8 @@ GArray *getPlatforms() {
   }
   return platforms;
 }
+
+cl_platform_id currPlatform(GArray *platforms, int i) {
+  cl_platform_id platform = g_array_index(platforms, cl_platform_id, i);
+  return platform;
+}
