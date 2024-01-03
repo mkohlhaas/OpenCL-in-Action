@@ -1,6 +1,7 @@
 #include "deviceCL.h"
 #include "error.h"
 #include <CL/cl.h>
+#include <CL/cl_platform.h>
 #include <glib.h>
 #include <stdio.h>
 
@@ -17,10 +18,8 @@ static char *getDeviceStr(cl_device_id device, cl_device_info paramName, char *e
 
 static cl_device_id getDeviceId(cl_device_id device, cl_device_info paramName, char *errorMsg) {
   size_t paramSize;
-  cl_int err = clGetDeviceInfo(device, paramName, 0, NULL, &paramSize);
-  handleError(err, errorMsg);
   cl_device_id retValue;
-  err = clGetDeviceInfo(device, paramName, paramSize, &retValue, NULL);
+  cl_int err = clGetDeviceInfo(device, paramName, sizeof(cl_device_id), &retValue, NULL);
   handleError(err, errorMsg);
   return retValue;
 }
@@ -35,40 +34,32 @@ cl_name_version *getDeviceNameVersion(cl_device_id device, cl_device_info paramN
 
 static cl_platform_id getDevicePlatformId(cl_device_id device, cl_device_info paramName, char *errorMsg) {
   size_t paramSize;
-  cl_int err = clGetDeviceInfo(device, paramName, 0, NULL, &paramSize);
-  handleError(err, errorMsg);
   cl_platform_id retValue;
-  err = clGetDeviceInfo(device, paramName, paramSize, &retValue, NULL);
+  cl_int err = clGetDeviceInfo(device, paramName, sizeof(cl_platform_id), &retValue, NULL);
   handleError(err, errorMsg);
   return retValue;
 }
 
 static size_t getDeviceSizeT(cl_device_id device, cl_device_info paramName, char *errorMsg) {
   size_t paramSize;
-  cl_int err = clGetDeviceInfo(device, paramName, 0, NULL, &paramSize);
-  handleError(err, errorMsg);
   size_t retValue;
-  err = clGetDeviceInfo(device, paramName, paramSize, &retValue, NULL);
+  cl_int err = clGetDeviceInfo(device, paramName, sizeof(size_t), &retValue, NULL);
   handleError(err, errorMsg);
   return retValue;
 }
 
 static cl_uint getDeviceUint(cl_device_id device, cl_device_info paramName, char *errorMsg) {
   size_t paramSize;
-  cl_int err = clGetDeviceInfo(device, paramName, 0, NULL, &paramSize);
-  handleError(err, errorMsg);
   cl_uint retValue;
-  err = clGetDeviceInfo(device, paramName, paramSize, &retValue, NULL);
+  cl_int err = clGetDeviceInfo(device, paramName, sizeof(cl_uint), &retValue, NULL);
   handleError(err, errorMsg);
   return retValue;
 }
 
 static cl_ulong getDeviceUlong(cl_device_id device, cl_device_info paramName, char *errorMsg) {
   size_t paramSize;
-  cl_int err = clGetDeviceInfo(device, paramName, 0, NULL, &paramSize);
-  handleError(err, errorMsg);
   cl_ulong retValue;
-  err = clGetDeviceInfo(device, paramName, paramSize, &retValue, NULL);
+  cl_int err = clGetDeviceInfo(device, paramName, sizeof(cl_ulong), &retValue, NULL);
   handleError(err, errorMsg);
   return retValue;
 }

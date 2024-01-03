@@ -1,5 +1,6 @@
 #include "error.h"
 #include <CL/cl.h>
+#include <CL/cl_platform.h>
 
 // Platform
 
@@ -41,8 +42,7 @@ cl_name_version *platformExtensions(cl_platform_id platform, size_t *numExtensio
 cl_ulong platformHostTimerResolution(cl_platform_id platform) {
   size_t paramSize;
   cl_ulong timerResolution;
-  cl_int err = clGetPlatformInfo(platform, CL_PLATFORM_HOST_TIMER_RESOLUTION, 0, NULL, &paramSize);
-  err = clGetPlatformInfo(platform, CL_PLATFORM_HOST_TIMER_RESOLUTION, paramSize, &timerResolution, NULL);
+  cl_int err = clGetPlatformInfo(platform, CL_PLATFORM_HOST_TIMER_RESOLUTION, sizeof(cl_ulong), &timerResolution, NULL);
   handleError(err, "Couldn't get platform host timer resolution.");
   return timerResolution;
 }
