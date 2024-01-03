@@ -3,6 +3,7 @@
 #include "json_object.h"
 #include "version.h"
 #include <CL/cl.h>
+#include <stdio.h>
 
 json_object *AddDevices(json_object *Platform) {
 
@@ -241,6 +242,332 @@ void AddDevice_LocalMemSize(json_object *Device, cl_device_id device) {
   json_object_object_add(Device, "local_mem_size", json_object_new_uint64(localMemSize));
 }
 
-void AddDevice_LocalMemType(json_object *Device, cl_device_id device) {
-  getProperties(getDeviceLocalMemType(device), "local_mem_type", Device);
+void AddDevice_LocalMemType(json_object *Device, cl_device_id device) { getProperties(getDeviceLocalMemType(device), "local_mem_type", Device); }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void AddDevice_MaxComputeUnits(json_object *Device, cl_device_id device) {
+  cl_uint maxComputeUnits = getDeviceMaxComputeUnits(device);
+  json_object_object_add(Device, "max_compute_units", json_object_new_uint64(maxComputeUnits));
+}
+
+void AddDevice_MaxConstantArgs(json_object *Device, cl_device_id device) {
+  cl_uint maxConstantArgs = getDeviceMaxConstantArgs(device);
+  json_object_object_add(Device, "max_constant_args", json_object_new_uint64(maxConstantArgs));
+}
+
+void AddDevice_MaxClockFrequency(json_object *Device, cl_device_id device) {
+  cl_uint maxClockFrequency = getDeviceMaxClockFrequency(device);
+  json_object_object_add(Device, "max_clock_frequency", json_object_new_uint64(maxClockFrequency));
+}
+
+void AddDevice_MaxConstantBufferSize(json_object *Device, cl_device_id device) {
+  cl_ulong maxConstantBufferSize = getDeviceMaxConstantBufferSize(device);
+  json_object_object_add(Device, "max_constant_buffer_size", json_object_new_uint64(maxConstantBufferSize));
+}
+
+void AddDevice_MaxGlobalVariableSize(json_object *Device, cl_device_id device) {
+  size_t maxGlobalVariableSize = getDeviceMaxGlobalVariableSize(device);
+  json_object_object_add(Device, "max_global_variable_size", json_object_new_uint64(maxGlobalVariableSize));
+}
+
+void AddDevice_MaxMemAllocSize(json_object *Device, cl_device_id device) {
+  cl_ulong maxMemAllocSize = getDeviceMaxMemAllocSize(device);
+  json_object_object_add(Device, "max_mem_alloc_size", json_object_new_uint64(maxMemAllocSize));
+}
+
+void AddDevice_MaxNumSubGroups(json_object *Device, cl_device_id device) {
+  cl_uint maxNumSubGroups = getDeviceMaxNumSubGroups(device);
+  json_object_object_add(Device, "max_num_sub_groups", json_object_new_uint64(maxNumSubGroups));
+}
+
+void AddDevice_MaxOnDeviceEvents(json_object *Device, cl_device_id device) {
+  cl_uint maxOnDeviceEvents = getDeviceMaxOnDeviceEvents(device);
+  json_object_object_add(Device, "max_on_device_events", json_object_new_uint64(maxOnDeviceEvents));
+}
+
+void AddDevice_MaxOnDeviceQueues(json_object *Device, cl_device_id device) {
+  cl_uint maxOnDeviceQueues = getDeviceMaxOnDeviceQueues(device);
+  json_object_object_add(Device, "max_on_device_queues", json_object_new_uint64(maxOnDeviceQueues));
+}
+
+void AddDevice_MaxParameterSize(json_object *Device, cl_device_id device) {
+  size_t maxParameterSize = getDeviceMaxParameterSize(device);
+  json_object_object_add(Device, "max_parameter_size", json_object_new_uint64(maxParameterSize));
+}
+
+void AddDevice_MaxPipeArgs(json_object *Device, cl_device_id device) {
+  cl_uint maxPipeArgs = getDeviceMaxPipeArgs(device);
+  json_object_object_add(Device, "max_pipe_args", json_object_new_uint64(maxPipeArgs));
+}
+
+void AddDevice_MaxReadImageArgs(json_object *Device, cl_device_id device) {
+  cl_uint maxReadImageArgs = getDeviceMaxReadImageArgs(device);
+  json_object_object_add(Device, "max_read_image_args", json_object_new_uint64(maxReadImageArgs));
+}
+
+void AddDevice_MaxReadWriteImageArgs(json_object *Device, cl_device_id device) {
+  cl_uint maxReadWriteImageArgs = getDeviceMaxReadWriteImageArgs(device);
+  json_object_object_add(Device, "max_read_write_image_args", json_object_new_uint64(maxReadWriteImageArgs));
+}
+
+void AddDevice_MaxSamplers(json_object *Device, cl_device_id device) {
+  cl_uint maxSamplers = getDeviceMaxSamplers(device);
+  json_object_object_add(Device, "max_samplers", json_object_new_uint64(maxSamplers));
+}
+
+void AddDevice_MaxWorkGroupSize(json_object *Device, cl_device_id device) {
+  size_t maxWorkGroupSize = getDeviceMaxWorkGroupSize(device);
+  json_object_object_add(Device, "max_work_group_size", json_object_new_uint64(maxWorkGroupSize));
+}
+
+void AddDevice_MaxWorkItemDimensions(json_object *Device, cl_device_id device) {
+  cl_uint maxWorkItemDimensions = getDeviceMaxWorkItemDimensions(device);
+  json_object_object_add(Device, "max_work_item_dimensions", json_object_new_uint64(maxWorkItemDimensions));
+}
+
+void AddDevice_MaxWorkItemSizes(json_object *Device, cl_device_id device) {
+  char buffer[12];
+  size_t numDims;
+  size_t *maxWorkItemSizes = getDeviceMaxWorkItemSizes(device, &numDims);
+  json_object *Sizes = json_object_new_array();
+  for (int i = 0; i < numDims; i++) {
+    json_object *Size = json_object_new_object();
+    sprintf(buffer, "%d", i);
+    json_object_object_add(Size, (char *)buffer, json_object_new_uint64(maxWorkItemSizes[i]));
+    json_object_array_add(Sizes, Size);
+  }
+  json_object_object_add(Device, "max_work_item_sizes", Sizes);
+}
+
+void AddDevice_MaxWriteImageArgs(json_object *Device, cl_device_id device) {
+  cl_uint maxWriteImageArgs = getDeviceMaxWriteImageArgs(device);
+  json_object_object_add(Device, "max_write_image_args", json_object_new_uint64(maxWriteImageArgs));
+}
+
+void AddDevice_MemBaseAddrAlign(json_object *Device, cl_device_id device) {
+  cl_uint memBaseAddrAlign = getDeviceMemBaseAddrAlign(device);
+  json_object_object_add(Device, "mem_base_addr_align ", json_object_new_uint64(memBaseAddrAlign));
+}
+
+void AddDevice_MemCacheType(json_object *Device, cl_device_id device) { getProperties(getDeviceMemCacheType(device), "mem_cache_type", Device); }
+
+void AddDevice_NativeVectorWidthChar(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthChar = getDeviceNativeVectorWidthChar(device);
+  json_object_object_add(Device, "native_vector_width_char", json_object_new_uint64(nativeVectorWidthChar));
+}
+
+void AddDevice_NativeVectorWidthDouble(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthDouble = getDeviceNativeVectorWidthDouble(device);
+  json_object_object_add(Device, "native_vector_width_double", json_object_new_uint64(nativeVectorWidthDouble));
+}
+
+void AddDevice_NativeVectorWidthFloat(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthFloat = getDeviceNativeVectorWidthFloat(device);
+  json_object_object_add(Device, "native_vector_width_float", json_object_new_uint64(nativeVectorWidthFloat));
+}
+
+void AddDevice_NativeVectorWidthHalf(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthHalf = getDeviceNativeVectorWidthHalf(device);
+  json_object_object_add(Device, "native_vector_width_half", json_object_new_uint64(nativeVectorWidthHalf));
+}
+
+void AddDevice_NativeVectorWidthInt(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthInt = getDeviceNativeVectorWidthInt(device);
+  json_object_object_add(Device, "native_vector_width_int", json_object_new_uint64(nativeVectorWidthInt));
+}
+
+void AddDevice_NativeVectorWidthLong(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthLong = getDeviceNativeVectorWidthLong(device);
+  json_object_object_add(Device, "native_vector_width_long", json_object_new_uint64(nativeVectorWidthLong));
+}
+
+void AddDevice_NativeVectorWidthShort(json_object *Device, cl_device_id device) {
+  cl_uint nativeVectorWidthShort = getDeviceNativeVectorWidthShort(device);
+  json_object_object_add(Device, "native_vector_width_short", json_object_new_uint64(nativeVectorWidthShort));
+}
+
+void AddDevice_NonUniformWorkGroupSupport(json_object *Device, cl_device_id device) {
+  cl_uint nonUniformWorkGroupSupport = getDeviceNonUniformWorkGroupSupport(device);
+  json_object_object_add(Device, "non_uniform_work_group_support", json_object_new_boolean(nonUniformWorkGroupSupport));
+}
+
+void AddDevice_NumericVersion(json_object *Device, cl_device_id device) {
+  cl_uint numericVersion = getDeviceNumericVersion(device);
+  json_object_object_add(Device, "numeric_version", json_object_new_string(versionStr(numericVersion)));
+}
+
+void AddDevice_OpenClCAllVersions(json_object *Device, cl_device_id device) {
+  size_t numC;
+  cl_name_version *cs = getDeviceOpenClCAllVersions(device, &numC);
+  json_object *Cs = json_object_new_array();
+  for (int i = 0; i < numC; i++) {
+    json_object *C = json_object_new_object();
+    json_object_object_add(C, "name", json_object_new_string(cs[i].name));
+    json_object_object_add(C, "version", json_object_new_string(versionStr(cs[i].version)));
+    json_object_array_add(Cs, C);
+  }
+  json_object_object_add(Device, "opencl_c_all_versions", Cs);
+}
+
+void AddDevice_OpenClCFeatures(json_object *Device, cl_device_id device) {
+  size_t numCFeatures;
+  cl_name_version *cfs = getDeviceOpenClCFeatures(device, &numCFeatures);
+  json_object *Cfs = json_object_new_array();
+  for (int i = 0; i < numCFeatures; i++) {
+    json_object *Cf = json_object_new_object();
+    json_object_object_add(Cf, "name", json_object_new_string(cfs[i].name));
+    json_object_object_add(Cf, "version", json_object_new_string(versionStr(cfs[i].version)));
+    json_object_array_add(Cfs, Cf);
+  }
+  json_object_object_add(Device, "opencl_c_features", Cfs);
+}
+
+void AddDevice_ParentId(json_object *Device, cl_device_id device) {
+  cl_device_id parentId = getDeviceParentId(device);
+  json_object_object_add(Device, "parent_id", json_object_new_uint64((intptr_t)parentId));
+}
+
+void AddDevice_PartitionMaxSubDevices(json_object *Device, cl_device_id device) {
+  cl_uint partitionMaxSubDevices = getDevicePartitionMaxSubDevices(device);
+  json_object_object_add(Device, "partition_max_sub_devices", json_object_new_uint64(partitionMaxSubDevices));
+}
+
+void AddDevice_PartitionProperties(json_object *Device, cl_device_id device) {
+  getProperties(getDevicePartitionProperties(device), "partition_properties", Device);
+}
+
+void AddDevice_PartitionType(json_object *Device, cl_device_id device) {
+  getProperties(getDevicePartitionType(device), "partition_types", Device);
+}
+
+void AddDevice_PipeMaxActiveReservations(json_object *Device, cl_device_id device) {
+  cl_uint pipeMaxActiveReservations = getDevicePipeMaxActiveReservations(device);
+  json_object_object_add(Device, "pipe_max_active_reservations", json_object_new_uint64(pipeMaxActiveReservations));
+}
+
+void AddDevice_PipeMaxPacketSize(json_object *Device, cl_device_id device) {
+  cl_uint pipeMaxPacketSize = getDevicePipeMaxPacketSize(device);
+  json_object_object_add(Device, "pipe_max_packet_size ", json_object_new_uint64(pipeMaxPacketSize));
+}
+
+void AddDevice_PipeSupport(json_object *Device, cl_device_id device) {
+  cl_uint pipeSupport = getDevicePipeSupport(device);
+  json_object_object_add(Device, "pipe_support", json_object_new_boolean(pipeSupport));
+}
+
+void AddDevice_PreferredGlobalAtomicAlignment(json_object *Device, cl_device_id device) {
+  cl_uint preferredGlobalAtomicAlignment = getDevicePreferredGlobalAtomicAlignment(device);
+  json_object_object_add(Device, "preferred_global_atomic_alignment", json_object_new_uint64(preferredGlobalAtomicAlignment));
+}
+
+void AddDevice_PreferredInteropUserSync(json_object *Device, cl_device_id device) {
+  cl_uint preferredInteropUserSync = getDevicePreferredInteropUserSync(device);
+  json_object_object_add(Device, "preferred_interop_user_sync", json_object_new_boolean(preferredInteropUserSync));
+}
+
+void AddDevice_PreferredLocalAtomicAlignment(json_object *Device, cl_device_id device) {
+  cl_uint preferredLocalAtomicAlignment = getDevicePreferredLocalAtomicAlignment(device);
+  json_object_object_add(Device, "preferred_local_atomic_alignment", json_object_new_uint64(preferredLocalAtomicAlignment));
+}
+
+void AddDevice_PreferredPlatformAtomicAlignment(json_object *Device, cl_device_id device) {
+  cl_uint preferredPlatformAtomicAlignment = getDevicePreferredPlatformAtomicAlignment(device);
+  json_object_object_add(Device, "preferred_platform_atomic_alignment", json_object_new_uint64(preferredPlatformAtomicAlignment));
+}
+
+void AddDevice_PreferredVectorWidthChar(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthChar = getDevicePreferredVectorWidthChar(device);
+  json_object_object_add(Device, "preferred_vector_width_char", json_object_new_uint64(preferredVectorWidthChar));
+}
+
+void AddDevice_PreferredVectorWidthDouble(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthDouble = getDevicePreferredVectorWidthChar(device);
+  json_object_object_add(Device, "preferred_vector_width_double", json_object_new_uint64(preferredVectorWidthDouble));
+}
+
+void AddDevice_PreferredVectorWidthFloat(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthFloat = getDevicePreferredVectorWidthFloat(device);
+  json_object_object_add(Device, "preferred_vector_width_float", json_object_new_uint64(preferredVectorWidthFloat));
+}
+
+void AddDevice_PreferredVectorWidthHalf(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthHalf = getDevicePreferredVectorWidthHalf(device);
+  json_object_object_add(Device, "preferred_vector_width_half", json_object_new_uint64(preferredVectorWidthHalf));
+}
+
+void AddDevice_PreferredVectorWidthInt(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthInt = getDevicePreferredVectorWidthChar(device);
+  json_object_object_add(Device, "preferred_vector_width_int", json_object_new_uint64(preferredVectorWidthInt));
+}
+
+void AddDevice_PreferredVectorWidthLong(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthLong = getDevicePreferredVectorWidthChar(device);
+  json_object_object_add(Device, "preferred_vector_width_long", json_object_new_uint64(preferredVectorWidthLong));
+}
+
+void AddDevice_PreferredVectorWidthShort(json_object *Device, cl_device_id device) {
+  cl_uint preferredVectorWidthShort = getDevicePreferredVectorWidthChar(device);
+  json_object_object_add(Device, "preferred_vector_width_short", json_object_new_uint64(preferredVectorWidthShort));
+}
+
+void AddDevice_PreferredWorkGroupSizeMultiple(json_object *Device, cl_device_id device) {
+  size_t preferredWorkGroupSizeMultiple = getDevicePreferredWorkGroupSizeMultiple(device);
+  json_object_object_add(Device, "preferred_work_group_size_multiple", json_object_new_uint64(preferredWorkGroupSizeMultiple));
+}
+
+void AddDevice_PrintfBufferSize(json_object *Device, cl_device_id device) {
+  size_t printfBufferSize = getDevicePrintfBufferSize(device);
+  json_object_object_add(Device, "printf_buffer_size", json_object_new_uint64(printfBufferSize));
+}
+
+void AddDevice_ProfilingTimerResolution(json_object *Device, cl_device_id device) {
+  size_t profilingTimerResolution = getDeviceProfilingTimerResolution(device);
+  json_object_object_add(Device, "profiling_timer_resolution", json_object_new_uint64(profilingTimerResolution));
+}
+
+void AddDevice_QueueOnDeviceMaxSize(json_object *Device, cl_device_id device) {
+  cl_uint queueOnDeviceMaxSize = getDeviceQueueOnDeviceMaxSize(device);
+  json_object_object_add(Device, "queue_on_device_max_size", json_object_new_uint64(queueOnDeviceMaxSize));
+}
+
+void AddDevice_QueueOnDeviceProperties(json_object *Device, cl_device_id device) {
+  getProperties(getDeviceQueueOnDeviceProperties(device), "queue_on_device_properties", Device);
+}
+
+void AddDevice_QueueOnHostProperties(json_object *Device, cl_device_id device) {
+  getProperties(getDeviceQueueOnHostProperties(device), "queue_on_host_properties", Device);
+}
+
+void AddDevice_QueueOnDevicePreferredSize(json_object *Device, cl_device_id device) {
+  cl_uint queueOnDevicePreferredSize = getDeviceQueueOnDevicePreferredSize(device);
+  json_object_object_add(Device, "queue_on_device_preferred_size", json_object_new_uint64(queueOnDevicePreferredSize));
+}
+
+void AddDevice_ReferenceCount(json_object *Device, cl_device_id device) {
+  cl_uint referenceCount = getDeviceReferenceCount(device);
+  json_object_object_add(Device, "reference_count", json_object_new_uint64(referenceCount));
+}
+
+void AddDevice_SingleFPConfig(json_object *Device, cl_device_id device) {
+  getProperties(getDeviceSingleFPConfig(device), "single_fp_config", Device);
+}
+
+void AddDevice_SubGroupIndependentForwardProgress(json_object *Device, cl_device_id device) {
+  cl_uint subGroupIndependentForwardProgress = getDeviceSubGroupIndependentForwardProgress(device);
+  json_object_object_add(Device, "sub_group_independent_forward_progress", json_object_new_boolean(subGroupIndependentForwardProgress));
+}
+
+void AddDevice_SVMCapabilities(json_object *Device, cl_device_id device) {
+  getProperties(getDeviceSVMCapabilities(device), "svm_capabilities", Device);
+}
+
+void AddDevice_VendorID(json_object *Device, cl_device_id device) {
+  cl_uint vendorID = getDeviceVendorID(device);
+  json_object_object_add(Device, "vendor_id", json_object_new_uint64(vendorID));
+}
+
+void AddDevice_WorkGroupCollectiveFunctionsSupport(json_object *Device, cl_device_id device) {
+  cl_uint workGroupCollectiveFunctionsSupport = getDeviceWorkGroupCollectiveFunctionsSupport(device);
+  json_object_object_add(Device, "work_group_collective_functions_support", json_object_new_boolean(workGroupCollectiveFunctionsSupport));
 }
