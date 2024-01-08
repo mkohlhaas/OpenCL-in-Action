@@ -12,10 +12,11 @@ int main(void) {
   cl_kernel *kernels = createAllKernels(program, &numKernels);
 
   printf("Number of kernels: %d.\n", numKernels);
-  int index = findNamedKernel(kernels, numKernels, "mult");
+  char *kernelName = "mult";
+  int index = findNamedKernel(kernels, numKernels, kernelName);
   if (index < 0)
-    printf("Kernel not found.\n");
+    printf("Kernel %s not found.\n", kernelName);
   else
-    printf("Found kernel at index %d.\n", index);
+    printf("Found kernel \"%s\" at index %d.\n", kernelName, index);
   releaseResources(context, device, program, kernels, numKernels);
 }

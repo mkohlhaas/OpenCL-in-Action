@@ -12,13 +12,12 @@ cl_int err; // OpenCL errors
 
 void handleError(char *message) {
   if (err) {
-    perror(message);
+    fprintf(stderr, "%s\n", message);
     exit(EXIT_FAILURE);
   }
 }
 
 void printProgramLog(cl_program program, cl_device_id device) {
-  /* Find size of log and print to std output */
   size_t log_size;
   clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
   char *program_log = (char *)malloc(log_size + 1);
@@ -72,7 +71,7 @@ int main(void) {
   /* Build program */
   const char options[] = "-cl-finite-math-only -cl-no-signed-zeros";
   err = clBuildProgram(program, 1, &device, options, NULL, NULL);
-  if (err < 0) {
+  if (err) {
     printProgramLog(program, device);
   }
 

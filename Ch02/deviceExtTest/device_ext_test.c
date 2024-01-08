@@ -29,8 +29,8 @@ int main() {
   handleError("Couldn't access any devices");
 
   /* Access device name */
-  char name_data[48];
-  err = clGetDeviceInfo(dev, CL_DEVICE_NAME, 48 * sizeof(char), name_data, NULL);
+  char name_data[64];
+  err = clGetDeviceInfo(dev, CL_DEVICE_NAME, sizeof(name_data), name_data, NULL);
   handleError("Couldn't read extension data");
 
   /* Access device address size */
@@ -40,7 +40,7 @@ int main() {
 
   /* Access device extensions */
   char ext_data[4096];
-  err = clGetDeviceInfo(dev, CL_DEVICE_EXTENSIONS, 4096 * sizeof(char), ext_data, NULL);
+  err = clGetDeviceInfo(dev, CL_DEVICE_EXTENSIONS, sizeof(ext_data), ext_data, NULL);
   handleError("Couldn't get device extensions.");
 
   printf("NAME: %s\nADDRESS_WIDTH: %u\nEXTENSIONS: %s\n", name_data, addr_data, ext_data);
