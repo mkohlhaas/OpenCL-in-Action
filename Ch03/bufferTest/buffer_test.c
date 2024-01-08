@@ -10,7 +10,7 @@ cl_int err;
 
 void handleError(char *message) {
   if (err) {
-    perror(message);
+    fprintf(stderr, "%s\n", message);
     exit(EXIT_FAILURE);
   }
 }
@@ -35,18 +35,18 @@ cl_device_id create_device() {
   handleError("Couldn't find any platforms");
 
   /* Access a device */
-  cl_device_id dev;
-  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
+  cl_device_id device;
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
   if (err == CL_DEVICE_NOT_FOUND) {
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &device, NULL);
   }
   handleError("Couldn't find any devices");
 
-  return dev;
+  return device;
 }
 
 /* Create program from a file and compile it */
-cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename) {
+cl_program build_program(cl_context ctx, cl_device_id device, const char *filename) {
 
   cl_program program;
   FILE *program_handle;
@@ -70,49 +70,58 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
 
   /* Create program from file */
   program = clCreateProgramWithSource(ctx, 1, (const char **)&program_buffer, &program_size, &err);
-  if (err < 0) {
-    perror("Couldn't create the program");
-    exit(1);
-  }
+  handleError("Couldn't create the program");
   free(program_buffer);
 
   /* Build program */
   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-  if (err < 0) {
-
-    /* Find size of log and print to std output */
-    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-    program_log = (char *)malloc(log_size + 1);
-    program_log[log_size] = '\0';
-    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
-    printf("%s\n", program_log);
-    free(program_log);
-    exit(1);
+  if (err) {
+    printProgramLog(program, device);
   }
 
   return program;
 }
 
-int main(void) {
-
-  /* OpenCL data structures */
-  cl_command_queue queue;
-  cl_program program;
-  cl_kernel kernel;
-  cl_int i, j, err;
-
-  /* Data and buffers */
-  float full_matrix[80], zero_matrix[80];
-  const size_t buffer_origin[3] = {5 * sizeof(float), 3, 0};
-  const size_t host_origin[3] = {1 * sizeof(float), 1, 0};
-  const size_t region[3] = {4 * sizeof(float), 4, 1};
-  cl_mem matrix_buffer;
-
-  /* Initialize data */
-  for (i = 0; i < 80; i++) {
+void initMatrices(float full_matrix[80], float zero_matrix[80]) {
+  for (int i = 0; i < 80; i++) {
     full_matrix[i] = i * 1.0f;
     zero_matrix[i] = 0.0;
   }
+}
+
+void displayMatrices(float full_matrix[80], float zero_matrix[80]) {
+  printf("Full Matrix:\n");
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 10; j++) {
+      printf("%6.1f", full_matrix[j + i * 10]);
+    }
+    printf("\n");
+  }
+
+  printf("\nZero Matrix:\n");
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 10; j++) {
+      printf("%6.1f", zero_matrix[j + i * 10]);
+    }
+    printf("\n");
+  }
+}
+
+int main(void) {
+
+  // clang-format off
+  float full_matrix[80];
+  float zero_matrix[80];
+  const size_t buffer_origin[3] = {5 * sizeof(float), 3, 0};
+  const size_t host_origin[3]   = {1 * sizeof(float), 1, 0};
+  const size_t region[3]        = {4 * sizeof(float), 4, 1};
+  // clang-format on
+
+  initMatrices(full_matrix, zero_matrix);
+
+  /* Display buffers */
+  printf("Before:\n");
+  displayMatrices(full_matrix, zero_matrix);
 
   /* Create a device and context */
   cl_device_id device = create_device();
@@ -120,13 +129,12 @@ int main(void) {
   handleError("Couldn't create a context");
 
   /* Build the program and create the kernel */
-  program = build_program(context, device, PROGRAM_FILE);
-  kernel = clCreateKernel(program, KERNEL_FUNC, &err);
+  cl_program program = build_program(context, device, PROGRAM_FILE);
+  cl_kernel kernel = clCreateKernel(program, KERNEL_FUNC, &err);
   handleError("Couldn't create a kernel");
 
   /* Create a buffer to hold 80 floats */
-  matrix_buffer =
-      clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(full_matrix), full_matrix, &err);
+  cl_mem matrix_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(full_matrix), full_matrix, &err);
   handleError("Couldn't create a buffer object");
 
   /* Set buffer as argument to the kernel */
@@ -134,29 +142,27 @@ int main(void) {
   handleError("Couldn't set the buffer as the kernel argument");
 
   /* Create a command queue */
-  queue = clCreateCommandQueueWithProperties(context, device, 0, &err);
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, 0, &err);
   handleError("Couldn't create a command queue");
 
   /* Enqueue kernel */
-  err = clEnqueueTask(queue, kernel, 0, NULL, NULL);
+  const size_t global_work_size[1] = {1};
+  const size_t local_work_size[1] = {1};
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);
   handleError("Couldn't enqueue the kernel");
 
   /* Enqueue command to write to buffer */
-  err = clEnqueueWriteBuffer(queue, matrix_buffer, CL_TRUE, 0, sizeof(full_matrix), full_matrix, 0, NULL, NULL);
+  err = clEnqueueWriteBuffer(queue, matrix_buffer, CL_BLOCKING, 0, sizeof(full_matrix), full_matrix, 0, NULL, NULL);
   handleError("Couldn't write to the buffer object");
 
   /* Enqueue command to read rectangle of data */
-  err = clEnqueueReadBufferRect(queue, matrix_buffer, CL_TRUE, buffer_origin, host_origin, region, 10 * sizeof(float),
-                                0, 10 * sizeof(float), 0, zero_matrix, 0, NULL, NULL);
+  err = clEnqueueReadBufferRect(queue, matrix_buffer, CL_BLOCKING, buffer_origin, host_origin, region, 10 * sizeof(float), 0, 10 * sizeof(float),
+                                0, zero_matrix, 0, NULL, NULL);
   handleError("Couldn't read the rectangle from the buffer object");
 
-  /* Display updated buffer */
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 10; j++) {
-      printf("%6.1f", zero_matrix[j + i * 10]);
-    }
-    printf("\n");
-  }
+  /* Display buffers */
+  printf("\nAfter:\n");
+  displayMatrices(full_matrix, zero_matrix);
 
   /* Deallocate resources */
   clReleaseMemObject(matrix_buffer);

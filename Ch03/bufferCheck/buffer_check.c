@@ -7,7 +7,7 @@ cl_int err;
 
 void handleError(char *message) {
   if (err) {
-    perror(message);
+    fprintf(stderr, "%s\n", message);
     exit(EXIT_FAILURE);
   }
 }
@@ -21,14 +21,14 @@ cl_device_id create_device() {
   handleError("Couldn't find any platforms");
 
   /* Access a device */
-  cl_device_id dev;
-  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
+  cl_device_id device;
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
   if (err == CL_DEVICE_NOT_FOUND) {
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &device, NULL);
   }
   handleError("Couldn't find any devices");
 
-  return dev;
+  return device;
 }
 
 int main(void) {
@@ -40,30 +40,32 @@ int main(void) {
 
   /* Create a buffer to hold 100 floating-point values */
   float main_data[100];
-  cl_mem main_buffer =
-      clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(main_data), main_data, &err);
+  cl_mem main_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(main_data), main_data, &err);
   handleError("Couldn't create a buffer");
 
   cl_buffer_region region;
   region.origin = 0x100;
   region.size = 20 * sizeof(float);
   cl_mem sub_buffer = clCreateSubBuffer(main_buffer, CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION, &region, &err);
-  printf("%d\n", err);
   handleError("Couldn't create a sub-buffer");
 
   /* Obtain size information about the buffers */
   size_t main_buffer_size;
   size_t sub_buffer_size;
+  // clang-format off
   clGetMemObjectInfo(main_buffer, CL_MEM_SIZE, sizeof(main_buffer_size), &main_buffer_size, NULL);
-  clGetMemObjectInfo(sub_buffer, CL_MEM_SIZE, sizeof(sub_buffer_size), &sub_buffer_size, NULL);
+  clGetMemObjectInfo(sub_buffer,  CL_MEM_SIZE, sizeof(sub_buffer_size),   &sub_buffer_size, NULL);
+  // clang-format on
   printf("Main buffer size: %lu\n", main_buffer_size);
   printf("Sub-buffer size:  %lu\n", sub_buffer_size);
 
   /* Obtain the host pointers */
   void *main_buffer_mem;
   void *sub_buffer_mem;
+  // clang-format off
   clGetMemObjectInfo(main_buffer, CL_MEM_HOST_PTR, sizeof(main_buffer_mem), &main_buffer_mem, NULL);
-  clGetMemObjectInfo(sub_buffer, CL_MEM_HOST_PTR, sizeof(sub_buffer_mem), &sub_buffer_mem, NULL);
+  clGetMemObjectInfo(sub_buffer,  CL_MEM_HOST_PTR, sizeof(sub_buffer_mem),   &sub_buffer_mem, NULL);
+  // clang-format on
   printf("Main buffer memory address: %p\n", main_buffer_mem);
   printf("Sub-buffer memory address:  %p\n", sub_buffer_mem);
 
