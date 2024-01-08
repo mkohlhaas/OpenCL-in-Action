@@ -96,7 +96,6 @@ cl_mem createInputBuffer(cl_context context, float *mem, size_t size) {
 }
 
 cl_mem createMatrixBuffer(cl_context context, float *mat) { return createInputBuffer(context, mat, 16); }
-
 cl_mem createVectorBuffer(cl_context context, float *vec) { return createInputBuffer(context, vec, 4); }
 
 cl_mem createResultBuffer(cl_context context) {
@@ -152,8 +151,8 @@ void testResult(float *mat, float *vec, float *result) {
 }
 
 // clang-format on
-void releaseResources(cl_device_id device, cl_context context, cl_program program, cl_kernel kernel,
-                      cl_command_queue cmdQueue, cl_mem matrixBuf, cl_mem vectorBuf, cl_mem resultBuf) {
+void releaseResources(cl_device_id device, cl_context context, cl_program program, cl_kernel kernel, cl_command_queue cmdQueue, cl_mem matrixBuf,
+                      cl_mem vectorBuf, cl_mem resultBuf) {
   clReleaseMemObject(matrixBuf);
   clReleaseMemObject(vectorBuf);
   clReleaseMemObject(resultBuf);
