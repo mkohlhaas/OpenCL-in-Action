@@ -1,7 +1,7 @@
-__kernel void basic_interop(__global float4* first_coords, 
-      __global float4* first_colors, __global float4* second_coords, 
-      __global float4* second_colors, __global float4* third_coords, 
-      __global float4* third_colors) {
+kernel void basic_interop(global float4* first_coords,
+                          global float4* first_colors, global float4* second_coords,
+                          global float4* second_colors, global float4* third_coords,
+                          global float4* third_colors) {
 
    first_coords[0] = (float4)(-0.15f, -0.15f,  1.00f, -0.15f);
    first_coords[1] = (float4)( 0.15f,  1.00f,  0.15f,  0.15f);

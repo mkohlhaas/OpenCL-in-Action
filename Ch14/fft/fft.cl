@@ -7,9 +7,9 @@
 #define sine x3.s1
 #define wk x2
 
-__kernel void fft_init(__global float2* in_data, __global float2* out_data,
-                       __local float2* l_data, uint points_per_group, 
-                       uint size, int dir) {
+kernel void fft_init(global float2* in_data, global float2* out_data,
+                     local float2* l_data, uint points_per_group,
+                     uint size, int dir) {
 
    uint4 br, index;
    uint points_per_item, g_addr, l_addr, i, fft_index, stage, N2;
@@ -50,7 +50,7 @@ __kernel void fft_init(__global float2* in_data, __global float2* out_data,
       l_data[l_addr] = sum12 + sum34;
       l_data[l_addr+1] = diff12 + diff34;
       l_data[l_addr+2] = sum12 - sum34;
-      l_data[l_addr+3] = diff12 - diff34; 
+      l_data[l_addr+3] = diff12 - diff34;
       l_addr += 4;
       g_addr += 4;
    }
@@ -65,7 +65,7 @@ __kernel void fft_init(__global float2* in_data, __global float2* out_data,
          for(i=1; i<N2; i++) {
             cosine = cos(M_PI_F*i/N2);
             sine = dir * sin(M_PI_F*i/N2);
-            wk = (float2)(l_data[l_addr+N2+i].s0*cosine + l_data[l_addr+N2+i].s1*sine, 
+            wk = (float2)(l_data[l_addr+N2+i].s0*cosine + l_data[l_addr+N2+i].s1*sine,
                           l_data[l_addr+N2+i].s1*cosine - l_data[l_addr+N2+i].s0*sine);
             l_data[l_addr+N2+i] = l_data[l_addr+i] - wk;
             l_data[l_addr+i] += wk;
@@ -83,7 +83,7 @@ __kernel void fft_init(__global float2* in_data, __global float2* out_data,
       for(i=start; i<start + points_per_item/2; i++) {
          cosine = cos(M_PI_F*angle/N2);
          sine = dir * sin(M_PI_F*angle/N2);
-         wk = (float2)(l_data[N2+i].s0*cosine + l_data[N2+i].s1*sine, 
+         wk = (float2)(l_data[N2+i].s0*cosine + l_data[N2+i].s1*sine,
                        l_data[N2+i].s1*cosine - l_data[N2+i].s0*sine);
          l_data[N2+i] = l_data[i] - wk;
          l_data[i] += wk;
@@ -100,13 +100,13 @@ __kernel void fft_init(__global float2* in_data, __global float2* out_data,
       out_data[g_addr] = l_data[l_addr];
       out_data[g_addr+1] = l_data[l_addr+1];
       out_data[g_addr+2] = l_data[l_addr+2];
-      out_data[g_addr+3] = l_data[l_addr+3];    
+      out_data[g_addr+3] = l_data[l_addr+3];
       g_addr += 4;
       l_addr += 4;
    }
 }
 
-__kernel void fft_stage(__global float2* g_data, uint stage, uint points_per_group, int dir) {
+kernel void fft_stage(global float2* g_data, uint stage, uint points_per_group, int dir) {
 
    uint points_per_item, addr, N, ang, i;
    float c, s;
@@ -130,7 +130,7 @@ __kernel void fft_stage(__global float2* g_data, uint stage, uint points_per_gro
    }
 }
 
-__kernel void fft_scale(__global float2* g_data, uint points_per_group, uint scale) {
+kernel void fft_scale(global float2* g_data, uint points_per_group, uint scale) {
 
    uint points_per_item, addr, i;
 

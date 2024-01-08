@@ -17,7 +17,7 @@
    input1 = shuffle2(input1, input2, as_uint4(comp));             \
    input2 = shuffle2(input2, temp, as_uint4(comp));               \
 
-__kernel void bsort8(__global float4 *data, int dir) {
+kernel void bsort8(global float4 *data, int dir) {
 
    float4 input1, input2, temp;
    int4 comp;

@@ -1,6 +1,6 @@
-__kernel void qr(__local float *u_vec, __global float *a_mat, 
-      __global float *q_mat, __global float *p_mat, 
-      __global float *prod_mat) {
+kernel void qr(local float *u_vec, global float *a_mat,
+               global float *q_mat, global float *p_mat,
+               global float *prod_mat) {
 
    local float u_length_squared, dot;
    float prod, vec_length = 0.0f;
@@ -42,11 +42,11 @@ __kernel void qr(__local float *u_vec, __global float *a_mat,
 
    /* Update Q matrix */
    for(int i=0; i<num_cols; i++) {
-      q_mat[id*num_cols + i] = -2 * u_vec[i] * 
+      q_mat[id*num_cols + i] = -2 * u_vec[i] *
             u_vec[id] / u_length_squared;
    }
    q_mat[id*num_cols + id] += 1;
-   barrier(CLK_GLOBAL_MEM_FENCE); 
+   barrier(CLK_GLOBAL_MEM_FENCE);
 
    /* Loop through other columns */
    for(int col = 1; col < num_cols-1; col++) {
@@ -81,9 +81,9 @@ __kernel void qr(__local float *u_vec, __global float *a_mat,
             }
          }
          barrier(CLK_LOCAL_MEM_FENCE);
-         
+
          if(id >= col)
-            a_mat[id*num_cols + i] -= 2 * u_vec[id] * 
+            a_mat[id*num_cols + i] -= 2 * u_vec[id] *
                   dot / u_length_squared;
          barrier(CLK_GLOBAL_MEM_FENCE);
       }
@@ -91,27 +91,27 @@ __kernel void qr(__local float *u_vec, __global float *a_mat,
       /* Update P matrix */
       if(id >= col) {
          for(int i=col; i<num_cols; i++) {
-            p_mat[id*num_cols + i] = -2 * u_vec[i] * 
+            p_mat[id*num_cols + i] = -2 * u_vec[i] *
                   u_vec[id] / u_length_squared;
          }
          p_mat[id*num_cols + id] += 1;
       }
-      barrier(CLK_GLOBAL_MEM_FENCE); 
+      barrier(CLK_GLOBAL_MEM_FENCE);
 
       /* Multiply q_mat * p_mat = prod_mat */
       for(int i=col; i<num_cols; i++) {
          prod = 0.0f;
          for(int j=col; j<num_cols; j++) {
             prod += q_mat[id*num_cols + j] * p_mat[j*num_cols + i];
-         }     
-         prod_mat[id*num_cols + i] = prod;  
+         }
+         prod_mat[id*num_cols + i] = prod;
       }
-      barrier(CLK_GLOBAL_MEM_FENCE); 
+      barrier(CLK_GLOBAL_MEM_FENCE);
 
       /* Place the content of prod_mat in q_mat */
       for(int i=col; i<num_cols; i++) {
          q_mat[id*num_cols + i] = prod_mat[id*num_cols + i];
       }
-      barrier(CLK_GLOBAL_MEM_FENCE); 
+      barrier(CLK_GLOBAL_MEM_FENCE);
    }
 }

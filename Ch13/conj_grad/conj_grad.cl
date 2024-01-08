@@ -1,7 +1,7 @@
-__kernel void conj_grad(int dim, int num_vals, __local float *r, 
-      __local float *x, __local float* A_times_p, __local float *p,
-      __global int *rows, __global int *cols, __global float *A, 
-      __global float *b, __global float *result) {
+kernel void conj_grad(int dim, int num_vals, local float *r,
+                      local float *x, local float* A_times_p, local float *p,
+                      global int *rows, global int *cols, global float *A,
+                      global float *b, global float *result) {
 
    local float alpha, r_length, old_r_dot_r, new_r_dot_r;
    local int iteration;
@@ -13,7 +13,7 @@ __kernel void conj_grad(int dim, int num_vals, __local float *r,
 
    /* Find matrix values for each work-item */
    for(int i=id; i<num_vals; i++) {
-      if((rows[i] == id) && (start_index == -1)) 
+      if((rows[i] == id) && (start_index == -1))
          start_index = i;
       else if((rows[i] == id+1) && (end_index == -1))  {
          end_index = i-1;
@@ -55,7 +55,7 @@ __kernel void conj_grad(int dim, int num_vals, __local float *r,
          Ap_dot_p = 0.0f;
          for(int i=0; i<dim; i++) {
             Ap_dot_p += A_times_p[i] * p[i];
-         } 
+         }
          alpha = old_r_dot_r/Ap_dot_p;
       }
       barrier(CLK_LOCAL_MEM_FENCE);
@@ -90,4 +90,4 @@ __kernel void conj_grad(int dim, int num_vals, __local float *r,
    result[1] = r_length;
 }
 
-   
+

@@ -1,4 +1,4 @@
-__kernel void profile_items(__global int4 *x, int num_ints) {
+kernel void profile_items(global int4 *x, int num_ints) {
 
    int num_vectors = num_ints/(4 * get_global_size(0));
 

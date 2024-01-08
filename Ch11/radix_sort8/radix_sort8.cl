@@ -1,4 +1,4 @@
-__kernel void radix_sort8(__global ushort8 *global_data) {
+kernel void radix_sort8(global ushort8 *global_data) {
 
    typedef union {
       ushort8 vec;

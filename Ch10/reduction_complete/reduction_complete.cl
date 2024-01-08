@@ -1,5 +1,4 @@
-__kernel void reduction_vector(__global float4* data, 
-      __local float4* partial_sums) {
+kernel void reduction_vector(global float4* data, local float4* partial_sums) {
 
    int lid = get_local_id(0);
    int group_size = get_local_size(0);
@@ -19,8 +18,8 @@ __kernel void reduction_vector(__global float4* data,
    }
 }
 
-__kernel void reduction_complete(__global float4* data, 
-      __local float4* partial_sums, __global float* sum) {
+kernel void reduction_complete(global float4* data,
+      local float4* partial_sums, global float* sum) {
 
    int lid = get_local_id(0);
    int group_size = get_local_size(0);

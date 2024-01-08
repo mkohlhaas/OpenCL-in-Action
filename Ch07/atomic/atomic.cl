@@ -1,8 +1,8 @@
-__kernel void atomic(__global int* x) {
+kernel void atomic(global int* x) {
 
-   __local int a, b;
+   local int a, b;
 
-   a = 0; 
+   a = 0;
    b = 0;
 
    /* Increment without atomic add */

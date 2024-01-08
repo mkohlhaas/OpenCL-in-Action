@@ -1,6 +1,6 @@
-__kernel void string_search(char16 pattern, __global char* text,
-     int chars_per_item, __local int* local_result, 
-     __global int* global_result) {
+kernel void string_search(char16 pattern, global char* text,
+                          int chars_per_item, local int* local_result,
+                          global int* global_result) {
 
    char16 text_vector, check_vector;
 

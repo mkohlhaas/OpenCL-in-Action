@@ -12,7 +12,7 @@
    input2 = shuffle2(input2, temp, as_uint4(comp));               \
 
 /* Perform initial sort */
-__kernel void bsort_init(__global float4 *g_data, __local float4 *l_data) {
+kernel void bsort_init(global float4 *g_data, local float4 *l_data) {
 
    int dir;
    uint id, global_start, size, stride;
@@ -30,7 +30,7 @@ __kernel void bsort_init(__global float4 *g_data, __local float4 *l_data) {
    id = get_local_id(0) * 2;
    global_start = get_group_id(0) * get_local_size(0) * 2 + id;
 
-   input1 = g_data[global_start]; 
+   input1 = g_data[global_start];
    input2 = g_data[global_start+1];
 
    /* Sort input 1 - ascending */
@@ -47,7 +47,7 @@ __kernel void bsort_init(__global float4 *g_data, __local float4 *l_data) {
    comp = input2 > shuffle(input2, mask2);
    input2 = shuffle(input2, as_uint4(comp * 2 + add2));
    comp = input2 > shuffle(input2, mask3);
-   input2 = shuffle(input2, as_uint4(comp + add3));     
+   input2 = shuffle(input2, as_uint4(comp + add3));
 
    /* Swap corresponding elements of input 1 and 2 */
    add3 = (int4)(4, 5, 6, 7);
@@ -109,7 +109,7 @@ __kernel void bsort_init(__global float4 *g_data, __local float4 *l_data) {
 }
 
 /* Perform lowest stage of the bitonic sort */
-__kernel void bsort_stage_0(__global float4 *g_data, __local float4 *l_data, 
+kernel void bsort_stage_0(global float4 *g_data, local float4 *l_data,
                             uint high_stage) {
 
    int dir;
@@ -161,7 +161,7 @@ __kernel void bsort_stage_0(__global float4 *g_data, __local float4 *l_data,
 }
 
 /* Perform successive stages of the bitonic sort */
-__kernel void bsort_stage_n(__global float4 *g_data, __local float4 *l_data, 
+kernel void bsort_stage_n(global float4 *g_data, local float4 *l_data,
                             uint stage, uint high_stage) {
 
    int dir;
@@ -186,7 +186,7 @@ __kernel void bsort_stage_n(__global float4 *g_data, __local float4 *l_data,
 }
 
 /* Sort the bitonic set */
-__kernel void bsort_merge(__global float4 *g_data, __local float4 *l_data, uint stage, int dir) {
+kernel void bsort_merge(global float4 *g_data, local float4 *l_data, uint stage, int dir) {
 
    float4 input1, input2;
    int4 comp, add;
@@ -208,7 +208,7 @@ __kernel void bsort_merge(__global float4 *g_data, __local float4 *l_data, uint 
 }
 
 /* Perform final step of the bitonic merge */
-__kernel void bsort_merge_last(__global float4 *g_data, __local float4 *l_data, int dir) {
+kernel void bsort_merge_last(global float4 *g_data, local float4 *l_data, int dir) {
 
    uint id, global_start, stride;
    float4 input1, input2, temp;

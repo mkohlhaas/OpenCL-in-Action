@@ -1,4 +1,4 @@
-__kernel void sphere(__global float4* vertices, float tick) {
+kernel void sphere(global float4* vertices, float tick) {
 
    int longitude = get_global_id(0)/16;
    int latitude = get_global_id(0) % 16;
