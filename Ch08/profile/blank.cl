@@ -1,2 +1,1 @@
-__kernel void blank(__global int *x) {
-}
+kernel void blank(global int *x) { }

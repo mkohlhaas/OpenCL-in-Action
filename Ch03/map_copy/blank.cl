@@ -1,1 +1,1 @@
-kernel void blank(__global float *a, __global float *b) { }
+kernel void blank(global float *a, global float *b) { }
