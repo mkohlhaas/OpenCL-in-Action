@@ -121,10 +121,12 @@ int main(void) {
   handleError("Couldn't create a memory object");
 
   /* Create kernel arguments */
-  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_buffer);
+  // clang-format off
+  err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_buffer);
   err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_buffer);
   err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &output_buffer);
   handleError("Couldnt create a memory object");
+  // clang-format off
 
   /* Create a command queue */
   cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
