@@ -1,2 +1,1 @@
-kernel void blank() {
-}
+kernel void blank() { }
