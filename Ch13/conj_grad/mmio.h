@@ -1,3 +1,5 @@
+#pragma once
+
 /* 
 *   Matrix Market I/O library for ANSI C
 *

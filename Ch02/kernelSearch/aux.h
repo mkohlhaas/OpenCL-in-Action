@@ -1,3 +1,5 @@
+#pragma once
+
 #include <CL/cl.h>
 
 cl_context createContext(cl_device_id);
