@@ -6,19 +6,17 @@ cl_int err;
 
 void handleError(char *message) {
   if (err) {
-    perror(message);
+    fprintf(stderr, "%s\n", message);
     exit(EXIT_FAILURE);
   }
 }
 
 int main(void) {
 
-  /* Identify a platform */
   cl_platform_id platform;
   err = clGetPlatformIDs(1, &platform, NULL);
   handleError("Couldn't find any platforms");
 
-  /* Access a device */
   cl_device_id device;
   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
   if (err == CL_DEVICE_NOT_FOUND) {

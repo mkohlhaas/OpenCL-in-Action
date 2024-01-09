@@ -102,11 +102,13 @@ int main(void) {
   handleError("Couldn't create a command queue");
 
   /* Enqueue kernel */
-  err = clEnqueueTask(queue, kernel, 0, NULL, NULL);
+  const size_t global_work_size[1] = {1};
+  const size_t local_work_size[1] = {1};
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);
   handleError("Couldn't enqueue the kernel");
 
   /* Read and print the result */
-  err = clEnqueueReadBuffer(queue, msg_buffer, CL_TRUE, 0, sizeof(msg), &msg, 0, NULL, NULL);
+  err = clEnqueueReadBuffer(queue, msg_buffer, CL_BLOCKING, 0, sizeof(msg), &msg, 0, NULL, NULL);
   handleError("Couldn't read the output buffer");
   printf("Kernel output: %s\n", msg);
 

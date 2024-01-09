@@ -10,7 +10,7 @@ cl_int err;
 
 void handleError(char *message) {
   if (err) {
-    perror(message);
+    fprintf(stderr, "%s\n", message);
     exit(EXIT_FAILURE);
   }
 }
@@ -83,19 +83,12 @@ int main(void) {
   cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
   handleError("Couldn't create a context");
 
-  /* Obtain the device data */
-  cl_uint addr_data;
-  err = clGetDeviceInfo(device, CL_DEVICE_ADDRESS_BITS, sizeof(addr_data), &addr_data, NULL);
-  handleError("Couldn't read extension data");
-  printf("Address width: %u\n", addr_data);
-
   /* Define "FP_64" option if doubles are supported */
-  char *ext_data;
   size_t ext_size;
-  clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, sizeof(ext_data), NULL, &ext_size);
-  ext_data = (char *)malloc(ext_size + 1);
-  ext_data[ext_size] = '\0';
-  clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, ext_size + 1, ext_data, NULL);
+  clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_size);
+  char *ext_data = (char *)malloc(ext_size);
+  clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, ext_size, ext_data, NULL);
+  fprintf(stderr, "%s\n", ext_data);
   char fp64_ext[] = "cl_khr_fp64";
   char options[20] = "";
   if (strstr(ext_data, fp64_ext)) {
@@ -126,21 +119,26 @@ int main(void) {
   err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_buffer);
   err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &output_buffer);
   handleError("Couldnt create a memory object");
-  // clang-format off
+  // clang-format on
 
   /* Create a command queue */
   cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
   handleError("Couldn't create a command queue");
 
   /* Enqueue kernel */
-  err = clEnqueueTask(queue, kernel, 0, NULL, NULL);
+  const size_t global_work_size[1] = {1};
+  const size_t local_work_size[1] = {1};
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);
   handleError("Couldn't enqueue the kernel");
 
   /* Read and print the result */
   float result;
-  err = clEnqueueReadBuffer(queue, output_buffer, CL_TRUE, 0, sizeof(float), &result, 0, NULL, NULL);
+  err = clEnqueueReadBuffer(queue, output_buffer, CL_BLOCKING, 0, sizeof(float), &result, 0, NULL, NULL);
   handleError("Couldn't read the output buffer");
-  printf("The kernel result is %f\n", result);
+
+  // cl_khr_fp64 extension is     supported → 3.0
+  // cl_khr_fp64 extension is not supported → 12.0
+  printf("The kernel result is %f.\n", result);
 
   /* Deallocate resources */
   clReleaseMemObject(a_buffer);
