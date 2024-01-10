@@ -1,22 +1,19 @@
-kernel void op_test(global int4 *output) {
+kernel void op_test(global int4* output) {
 
    int4 vec = (int4)(1, 2, 3, 4);
 
-   /* Adds 4 to every element of vec */
-   vec += 4;
+   vec += 4;                                              // (5, 6, 7, 8)
 
-   /* Sets the third element to 0
-      Doesn't change the other elements
-      (-1 in hexadecimal = 0xFFFFFFFF */
-   if(vec.s2 == 7)
-      vec &= (int4)(-1, -1, 0, -1);
+   if(vec.s2 == 7) {
+      vec &= (int4)(-1, -1, 0, -1);                       // (5, 6, 0, 8)
+   }
 
-   /* Sets the first element to -1, the second to 0 */
-   vec.s01 = vec.s23 < 7;
+   // the signed value for true is -1, for false it is 0
+   vec.s01 = vec.s23 < 7;                                 // (-1, 0, 0, 8)
 
-   /* Divides the last element by 2 until it is less than or equal to 7 */
-   while(vec.s3 > 7 && (vec.s0 < 16 || vec.s1 < 16))
+   while(vec.s3 > 7 && (vec.s0 < 16 || vec.s1 < 16)) {
       vec.s3 >>= 1;
+   }
 
-   *output = vec;
+   *output = vec;                                         // (-1, 0, 0, 4)
 }

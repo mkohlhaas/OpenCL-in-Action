@@ -1,7 +1,7 @@
-kernel void mod_round(global float *mod_input,
-                      global float *mod_output,
-                      global float4 *round_input,
-                      global float4 *round_output) {
+kernel void mod_round(global float*  mod_input,
+                      global float*  mod_output,
+                      global float4* round_input,
+                      global float4* round_output) {
 
    /* Use fmod and remainder: 317.0, 23.0 */
    mod_output[0] = fmod(mod_input[0], mod_input[1]);

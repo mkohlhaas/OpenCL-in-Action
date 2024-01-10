@@ -1,4 +1,4 @@
-kernel void mad_test(global uint *result) {
+kernel void mad_test(global uint* result) {
 
    uint a = 0x123456;
    uint b = 0x112233;

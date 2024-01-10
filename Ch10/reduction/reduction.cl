@@ -21,7 +21,8 @@ kernel void reduction_scalar(global float* data,
 }
 
 kernel void reduction_vector(global float4* data,
-      local float4* partial_sums, global float* output) {
+                             local  float4* partial_sums,
+                             global float*  output) {
 
    int lid = get_local_id(0);
    int group_size = get_local_size(0);
