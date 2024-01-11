@@ -62,83 +62,70 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
   return program;
 }
 
-void read_image_data(const char *filename, png_bytep *data, size_t *w, size_t *h) {
-
-  /* Open input file */
+void read_image_data(const char *filename, png_bytep *data, size_t *width, size_t *height) {
   FILE *png_input;
   if ((png_input = fopen(filename, "rb")) == NULL) {
     perror("Can't read input image file");
     exit(1);
   }
 
-  /* Read image data */
   png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   png_infop info_ptr = png_create_info_struct(png_ptr);
   png_init_io(png_ptr, png_input);
   png_read_info(png_ptr, info_ptr);
-  *w = png_get_image_width(png_ptr, info_ptr);
-  *h = png_get_image_height(png_ptr, info_ptr);
+  *width = png_get_image_width(png_ptr, info_ptr);
+  *height = png_get_image_height(png_ptr, info_ptr);
 
-  /* Allocate memory and read image data */
-  *data = malloc(*h * png_get_rowbytes(png_ptr, info_ptr));
-  for (int i = 0; i < *h; i++) {
+  *data = malloc(*height * png_get_rowbytes(png_ptr, info_ptr));
+  for (int i = 0; i < *height; i++) {
     png_read_row(png_ptr, *data + i * png_get_rowbytes(png_ptr, info_ptr), NULL);
   }
 
-  /* Close input file */
   png_read_end(png_ptr, info_ptr);
   png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
   fclose(png_input);
 }
 
-void write_image_data(const char *filename, png_bytep data, size_t w, size_t h) {
-
-  /* Open output file */
+void write_image_data(const char *filename, png_bytep data, size_t width, size_t height) {
   FILE *png_output;
   if ((png_output = fopen(filename, "wb")) == NULL) {
     perror("Create output image file");
     exit(1);
   }
 
-  /* Write image data */
   png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   png_infop info_ptr = png_create_info_struct(png_ptr);
   png_init_io(png_ptr, png_output);
-  png_set_IHDR(png_ptr, info_ptr, w, h, 16, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+  png_set_IHDR(png_ptr, info_ptr, width, height, 16, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
   png_write_info(png_ptr, info_ptr);
-  for (int i = 0; i < h; i++) {
+  for (int i = 0; i < height; i++) {
     png_write_row(png_ptr, data + i * png_get_rowbytes(png_ptr, info_ptr));
   }
 
-  /* Close file */
   png_write_end(png_ptr, NULL);
   png_destroy_write_struct(&png_ptr, &info_ptr);
   fclose(png_output);
 }
 
 int main(void) {
-  size_t global_size[2];
   png_bytep pixels;
-  cl_image_format png_format;
-  size_t origin[3], region[3];
   size_t width, height;
-
   read_image_data(INPUT_FILE, &pixels, &width, &height);
 
   // clang-format off
-  cl_device_id device = create_device();
-  cl_context context  = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                               handleError("Couldn't create a context.");
+  cl_device_id device  = create_device();
+  cl_context   context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                              handleError("Couldn't create a context.");
+  cl_program   program = build_program(context, device, PROGRAM_FILE);
+  cl_kernel    kernel  = clCreateKernel(program, KERNEL_FUNC, &err);                                                                       handleError("Couldn't create a kernel.");
 
-  cl_program program = build_program(context, device, PROGRAM_FILE);
-  cl_kernel kernel   = clCreateKernel(program, KERNEL_FUNC, &err);                                                                         handleError("Couldn't create a kernel.");
-
+  cl_image_format png_format;
   png_format.image_channel_order     = CL_LUMINANCE;
   png_format.image_channel_data_type = CL_UNORM_INT16;
   cl_image_desc imageDesc;
-  imageDesc.image_type = CL_MEM_OBJECT_IMAGE2D;
-  imageDesc.image_width = width;
+  imageDesc.image_type   = CL_MEM_OBJECT_IMAGE2D;
+  imageDesc.image_width  = width;
   imageDesc.image_height = height;
-  cl_mem input_image = clCreateImage(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &png_format, &imageDesc, pixels, &err);             handleError("Couldn't create input image object.");
+  cl_mem input_image  = clCreateImage(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &png_format, &imageDesc, pixels, &err);            handleError("Couldn't create input image object.");
   cl_mem output_image = clCreateImage(context, CL_MEM_WRITE_ONLY, &png_format, &imageDesc, NULL, &err);                                    handleError("Couldn't create output image object.");
 
   err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_image);                                                                          handleError("Couldn't set a kernel argument.");
@@ -146,17 +133,21 @@ int main(void) {
 
   cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);                                                handleError("Couldn't create a command queue.");
 
+  size_t global_size[2];
   global_size[0] = width;
   global_size[1] = height;
   err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_size, NULL, 0, NULL, NULL);                                                  handleError("Couldn't enqueue the kernel.");
 
+  size_t origin[3];
   origin[0] = 0;
   origin[1] = 0;
   origin[2] = 0;
+  size_t region[3];
   region[0] = width;
   region[1] = height;
   region[2] = 1;
   err = clEnqueueReadImage(queue, output_image, CL_BLOCKING, origin, region, 0, 0, pixels, 0, NULL, NULL);                                 handleError("Couldn't read from the image object.");
+  // clang-format on
 
   write_image_data(OUTPUT_FILE, pixels, width, height);
 
