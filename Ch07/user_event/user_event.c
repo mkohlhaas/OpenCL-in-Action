@@ -68,8 +68,6 @@ void CL_CALLBACK read_complete(cl_event e, cl_int status, void *data) {
 
 int main(void) {
 
-  /* Data and events */
-
   /* Initialize data */
   float data[4];
   for (int i = 0; i < 4; i++) {
@@ -79,29 +77,29 @@ int main(void) {
   // clang-format off
   /* Create a device and context */
   cl_device_id device  = create_device();
-  cl_context   context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                        handleError("Couldn't create a context.");
+  cl_context   context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                            handleError("Couldn't create a context.");
   cl_program   program = build_program(context, device, PROGRAM_FILE);
-  cl_kernel    kernel  = clCreateKernel(program, KERNEL_FUNC, &err);                                                 handleError("Couldn't create a kernel.");
+  cl_kernel    kernel  = clCreateKernel(program, KERNEL_FUNC, &err);                                                     handleError("Couldn't create a kernel.");
 
-  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);  handleError("Couldn't create a buffer");
+  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);      handleError("Couldn't create a buffer.");
 
-  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buffer); handleError("Couldn't set a kernel argument");
+  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buffer);                                                         handleError("Couldn't set a kernel argument.");
 
   cl_queue_properties queue_properties[] = {CL_QUEUE_PROPERTIES, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 0};
-  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, queue_properties, &err);              handleError("Couldn't create a command queue.");
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, queue_properties, &err);                  handleError("Couldn't create a command queue.");
 
   cl_event user_event;
-  user_event = clCreateUserEvent(context, &err);                                                                     handleError("Couldn't enqueue the kernel");
+  user_event = clCreateUserEvent(context, &err);                                                                         handleError("Couldn't enqueue the kernel.");
 
   cl_event kernel_event, read_event;
   const size_t gws[1] = {1};
   const size_t lws[1] = {1};
-  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, gws, lws, 1, &user_event, &kernel_event);                     handleError("Couldn't enqueue the kernel.");
-  err = clEnqueueReadBuffer(queue, data_buffer, CL_FALSE, 0, sizeof(data), data, 1, &kernel_event, &read_event);     handleError("Couldn't read the buffer");
-  err = clSetEventCallback(read_event, CL_COMPLETE, &read_complete, data);                                           handleError("Couldn't set callback for event");
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, gws, lws, 1, &user_event, &kernel_event);                         handleError("Couldn't enqueue the kernel.");
+  err = clEnqueueReadBuffer(queue, data_buffer, CL_NON_BLOCKING, 0, sizeof(data), data, 1, &kernel_event, &read_event);  handleError("Couldn't read the buffer.");
+  err = clSetEventCallback(read_event, CL_COMPLETE, &read_complete, data);                                               handleError("Couldn't set callback for event.");
 
   // clang-format on
-  /* Sleep for a second to demonstrate that commands haven't started executing. Then prompt user */
+  /* Sleep for a second to demonstrate that commands haven't started executing. */
   sleep(1);
   printf("Old data: %4.2f, %4.2f, %4.2f, %4.2f\n", data[0], data[1], data[2], data[3]);
   printf("Press ENTER to continue.\n");
