@@ -1,6 +1,7 @@
-kernel void reduction_vector(global float4* data, local float4* partial_sums) {
+kernel void reduction_vector(global float4* data,
+                             local  float4* partial_sums) {
 
-   int lid = get_local_id(0);
+   int lid        = get_local_id(0);
    int group_size = get_local_size(0);
 
    partial_sums[lid] = data[get_global_id(0)];
@@ -19,9 +20,10 @@ kernel void reduction_vector(global float4* data, local float4* partial_sums) {
 }
 
 kernel void reduction_complete(global float4* data,
-      local float4* partial_sums, global float* sum) {
+                               local  float4* partial_sums,
+                               global float*  sum) {
 
-   int lid = get_local_id(0);
+   int lid        = get_local_id(0);
    int group_size = get_local_size(0);
 
    partial_sums[lid] = data[get_local_id(0)];
@@ -35,9 +37,6 @@ kernel void reduction_complete(global float4* data,
    }
 
    if(lid == 0) {
-      *sum = partial_sums[0].s0 + partial_sums[0].s1 +
-             partial_sums[0].s2 + partial_sums[0].s3;
+      *sum = partial_sums[0].s0 + partial_sums[0].s1 + partial_sums[0].s2 + partial_sums[0].s3;
    }
 }
-
-

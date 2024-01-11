@@ -1,240 +1,143 @@
-#define _CRT_SECURE_NO_WARNINGS
-#define PROGRAM_FILE "reduction_complete.cl"
+#include <CL/cl.h>
+#include <math.h>
+#include <stdio.h>
 
+#define PROGRAM_FILE "reduction_complete.cl"
 #define ARRAY_SIZE 1048576
 #define KERNEL_1 "reduction_vector"
 #define KERNEL_2 "reduction_complete"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+cl_int err;
 
-#ifdef MAC
-#include <OpenCL/cl.h>
-#else
-#include <CL/cl.h>
-#endif
+void handleError(char *message) {
+  if (err) {
+    fprintf(stderr, "%s\n", message);
+    exit(EXIT_FAILURE);
+  }
+}
 
-/* Find a GPU or CPU associated with the first available platform */
 cl_device_id create_device() {
+  cl_platform_id platform;
+  err = clGetPlatformIDs(1, &platform, NULL);
+  handleError("Couldn't identify a platform");
 
-   cl_platform_id platform;
-   cl_device_id dev;
-   int err;
+  cl_device_id device;
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
+  if (err == CL_DEVICE_NOT_FOUND) {
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &device, NULL);
+  }
+  handleError("Couldn't access any devices");
 
-   /* Identify a platform */
-   err = clGetPlatformIDs(1, &platform, NULL);
-   if(err < 0) {
-      perror("Couldn't identify a platform");
-      exit(1);
-   } 
-
-   /* Access a device */
-   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
-   if(err == CL_DEVICE_NOT_FOUND) {
-      err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
-   }
-   if(err < 0) {
-      perror("Couldn't access any devices");
-      exit(1);   
-   }
-
-   return dev;
+  return device;
 }
 
-/* Create program from a file and compile it */
-cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename) {
+cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename) {
+  FILE *program_handle = fopen(filename, "r");
+  if (program_handle == NULL) {
+    perror("Couldn't find the program file");
+    exit(EXIT_FAILURE);
+  }
+  fseek(program_handle, 0, SEEK_END);
+  size_t program_size = ftell(program_handle);
+  rewind(program_handle);
+  char *program_buffer = (char *)malloc(program_size);
+  fread(program_buffer, sizeof(char), program_size, program_handle);
+  fclose(program_handle);
 
-   cl_program program;
-   FILE *program_handle;
-   char *program_buffer, *program_log;
-   size_t program_size, log_size;
-   int err;
+  cl_program program = clCreateProgramWithSource(ctx, 1, (const char **)&program_buffer, &program_size, &err);
+  handleError("Couldn't create the program");
+  free(program_buffer);
 
-   /* Read program file and place content into buffer */
-   program_handle = fopen(filename, "r");
-   if(program_handle == NULL) {
-      perror("Couldn't find the program file");
-      exit(1);
-   }
-   fseek(program_handle, 0, SEEK_END);
-   program_size = ftell(program_handle);
-   rewind(program_handle);
-   program_buffer = (char*)malloc(program_size + 1);
-   program_buffer[program_size] = '\0';
-   fread(program_buffer, sizeof(char), program_size, program_handle);
-   fclose(program_handle);
+  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+  if (err) {
+    size_t log_size;
+    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    char *program_log = (char *)malloc(log_size);
+    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
+    printf("%s\n", program_log);
+    free(program_log);
+    exit(EXIT_FAILURE);
+  }
 
-   /* Create program from file */
-   program = clCreateProgramWithSource(ctx, 1, 
-      (const char**)&program_buffer, &program_size, &err);
-   if(err < 0) {
-      perror("Couldn't create the program");
-      exit(1);
-   }
-   free(program_buffer);
-
-   /* Build program */
-   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-   if(err < 0) {
-
-      /* Find size of log and print to std output */
-      clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 
-            0, NULL, &log_size);
-      program_log = (char*) malloc(log_size + 1);
-      program_log[log_size] = '\0';
-      clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 
-            log_size + 1, program_log, NULL);
-      printf("%s\n", program_log);
-      free(program_log);
-      exit(1);
-   }
-
-   return program;
+  return program;
 }
 
-int main() {
+int main(void) {
 
-   /* OpenCL structures */
-   cl_device_id device;
-   cl_context context;
-   cl_program program;
-   cl_kernel vector_kernel, complete_kernel;
-   cl_command_queue queue;
-   cl_event start_event, end_event;
-   cl_int i, err;
-   size_t local_size, global_size;
+  // initialize data
+  float data[ARRAY_SIZE];
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    data[i] = 1.0f * i;
+  }
 
-   /* Data and buffers */
-   float data[ARRAY_SIZE];
-   float sum, actual_sum;
-   cl_mem data_buffer, sum_buffer;
-   cl_ulong time_start, time_end, total_time;
+  // clang-format off
+  cl_device_id device = create_device();
+  size_t local_size;
+  err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(local_size), &local_size, NULL);                            handleError("Couldn't obtain device information.");
 
-   /* Initialize data */
-   for(i=0; i<ARRAY_SIZE; i++) {
-      data[i] = 1.0f*i;
-   }
+  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                       handleError("Couldn't create a context.");
+  cl_program program = build_program(context, device, PROGRAM_FILE);
 
-   /* Create device and determine local size */
-   device = create_device();
-   err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, 	
-         sizeof(local_size), &local_size, NULL);	
-   if(err < 0) {
-      perror("Couldn't obtain device information");
-      exit(1);   
-   }
+  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, ARRAY_SIZE * sizeof(float), data, &err);  handleError("Couldn't create a buffer.");
+  cl_mem sum_buffer  = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float), NULL, &err);                                     handleError("Couldn't create a buffer.");
 
-   /* Create a context */
-   context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-   if(err < 0) {
-      perror("Couldn't create a context");
-      exit(1);   
-   }
+  cl_queue_properties properties[] = {CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0};
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, properties, &err);                                 handleError("Couldn't create a command queue.");
 
-   /* Build program */
-   program = build_program(context, device, PROGRAM_FILE);
+  cl_kernel vector_kernel   = clCreateKernel(program, KERNEL_1, &err);                                                            handleError("Couldn't create a kernel.");
+  cl_kernel complete_kernel = clCreateKernel(program, KERNEL_2, &err);                                                            handleError("Couldn't create a kernel.");
 
-   /* Create data buffer */
-   data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE |
-         CL_MEM_USE_HOST_PTR, ARRAY_SIZE * sizeof(float), data, &err);
-   sum_buffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, 
-         sizeof(float), NULL, &err);
-   if(err < 0) {
-      perror("Couldn't create a buffer");
-      exit(1);   
-   };
+  // vector kernel
+  err  = clSetKernelArg(vector_kernel,   0, sizeof(cl_mem), &data_buffer);
+  err |= clSetKernelArg(vector_kernel,   1, local_size * 4 * sizeof(float), NULL);                                                handleError("Couldn't set kernel arguements.");
+  // complete kernel
+  err  = clSetKernelArg(complete_kernel, 0, sizeof(cl_mem), &data_buffer);
+  err |= clSetKernelArg(complete_kernel, 1, local_size * 4 * sizeof(float), NULL);
+  err |= clSetKernelArg(complete_kernel, 2, sizeof(cl_mem), &sum_buffer);                                                         handleError("Couldn't set kernel arguement.");
 
-   /* Create a command queue */
-   queue = clCreateCommandQueue(context, device, 
-         CL_QUEUE_PROFILING_ENABLE, &err);
-   if(err < 0) {
-      perror("Couldn't create a command queue");
-      exit(1);   
-   };
+  size_t global_size = ARRAY_SIZE / 4;
+  cl_event start_event, end_event;
+  err = clEnqueueNDRangeKernel(queue, vector_kernel, 1, NULL, &global_size, &local_size, 0, NULL, &start_event);                  handleError("Couldn't enqueue the kernel.");
+  printf("Global size = %zu\n", global_size);
 
-   /* Create kernels */
-   vector_kernel = clCreateKernel(program, KERNEL_1, &err);
-   complete_kernel = clCreateKernel(program, KERNEL_2, &err);
-   if(err < 0) {
-      perror("Couldn't create a kernel");
-      exit(1);
-   };
+  // perform successive stages of the reduction
+  while (global_size / local_size > local_size) {
+    global_size = global_size / local_size;
+    printf("Global size = %zu\n", global_size);
+    err = clEnqueueNDRangeKernel(queue, vector_kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                        handleError("Couldn't enqueue the kernel.");
+  }
 
-   /* Set arguments for vector kernel */
-   err = clSetKernelArg(vector_kernel, 0, sizeof(cl_mem), &data_buffer);
-   err |= clSetKernelArg(vector_kernel, 1, local_size * 4 * sizeof(float), NULL);
+  global_size = global_size / local_size;
+  printf("Global size = %zu\n", global_size);
+  err = clEnqueueNDRangeKernel(queue, complete_kernel, 1, NULL, &global_size, NULL, 0, NULL, &end_event);                         handleError("Couldn't enqueue the kernel.");
+  clFinish(queue);
 
-   /* Set arguments for complete kernel */
-   err = clSetKernelArg(complete_kernel, 0, sizeof(cl_mem), &data_buffer);
-   err |= clSetKernelArg(complete_kernel, 1, local_size * 4 * sizeof(float), NULL);
-   err |= clSetKernelArg(complete_kernel, 2, sizeof(cl_mem), &sum_buffer);
-   if(err < 0) {
-      perror("Couldn't create a kernel argument");
-      exit(1);   
-   }
+  cl_ulong time_start, time_end;
+  err = clGetEventProfilingInfo(start_event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);                  handleError("Couldn't get profiling information.");
+  err = clGetEventProfilingInfo(end_event,   CL_PROFILING_COMMAND_END,   sizeof(time_end),   &time_end,   NULL);                  handleError("Couldn't get profiling information.");
+  cl_ulong time_total = time_end - time_start;
 
-   /* Enqueue kernels */
-   global_size = ARRAY_SIZE/4;
-   err = clEnqueueNDRangeKernel(queue, vector_kernel, 1, NULL, &global_size, 
-         &local_size, 0, NULL, &start_event);
-   if(err < 0) {
-      perror("Couldn't enqueue the kernel");
-      exit(1);   
-   }
-   printf("Global size = %zu\n", global_size);
+  // read results
+  float sum;
+  err = clEnqueueReadBuffer(queue, sum_buffer, CL_BLOCKING, 0, sizeof(float), &sum, 0, NULL, NULL);                               handleError("Couldn't read the buffer.");
+  // clang-format on
 
-   /* Perform successive stages of the reduction */
-   while(global_size/local_size > local_size) {
-      global_size = global_size/local_size;
-      err = clEnqueueNDRangeKernel(queue, vector_kernel, 1, NULL, &global_size, 
-            &local_size, 0, NULL, NULL);
-      printf("Global size = %zu\n", global_size);
-      if(err < 0) {
-         perror("Couldn't enqueue the kernel");
-         exit(1);   
-      }
-   }
-   global_size = global_size/local_size;
-   err = clEnqueueNDRangeKernel(queue, complete_kernel, 1, NULL, &global_size, 
-         NULL, 0, NULL, &end_event);
-   printf("Global size = %zu\n", global_size);
+  // check results
+  float actual_sum = (ARRAY_SIZE / 2.0f) * (ARRAY_SIZE - 1); // when Gauss was in primrary school
+  if (fabs(sum - actual_sum) > 0.01 * fabs(sum)) {
+    printf("Check failed.\n");
+  } else {
+    printf("Check passed.\n");
+  }
+  printf("Total time = %lu\n", time_total);
 
-   /* Finish processing the queue and get profiling information */
-   clFinish(queue);
-   clGetEventProfilingInfo(start_event, CL_PROFILING_COMMAND_START,
-         sizeof(time_start), &time_start, NULL);
-   clGetEventProfilingInfo(end_event, CL_PROFILING_COMMAND_END,
-         sizeof(time_end), &time_end, NULL);
-   total_time = time_end - time_start;
-
-   /* Read the result */
-   err = clEnqueueReadBuffer(queue, sum_buffer, CL_TRUE, 0, 
-      sizeof(float), &sum, 0, NULL, NULL);
-   if(err < 0) {
-      perror("Couldn't read the buffer");
-      exit(1);   
-   }
-
-   /* Check result */
-   actual_sum = 1.0f * (ARRAY_SIZE/2)*(ARRAY_SIZE-1);
-   if(fabs(sum - actual_sum) > 0.01*fabs(sum))
-      printf("Check failed.\n");
-   else
-      printf("Check passed.\n");
-   printf("Total time = %lu\n", total_time);
-
-   /* Deallocate resources */
-   clReleaseEvent(start_event);
-   clReleaseEvent(end_event);
-   clReleaseMemObject(sum_buffer);
-   clReleaseMemObject(data_buffer);
-   clReleaseKernel(vector_kernel);
-   clReleaseKernel(complete_kernel);
-   clReleaseCommandQueue(queue);
-   clReleaseProgram(program);
-   clReleaseContext(context);
-   return 0;
+  clReleaseEvent(start_event);
+  clReleaseEvent(end_event);
+  clReleaseMemObject(sum_buffer);
+  clReleaseMemObject(data_buffer);
+  clReleaseKernel(vector_kernel);
+  clReleaseKernel(complete_kernel);
+  clReleaseCommandQueue(queue);
+  clReleaseProgram(program);
+  clReleaseContext(context);
 }
