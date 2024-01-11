@@ -50,7 +50,7 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
     size_t log_size;
     clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
     char *program_log = (char *)malloc(log_size);
-    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
+    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
     printf("%s\n", program_log);
     free(program_log);
     exit(EXIT_FAILURE);
@@ -72,10 +72,9 @@ int main() {
   err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buffer);                                       handleError("Couldn't set kernel argument.");
   cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);            handleError("Couldn't create a command queue.");
 
-  size_t offset      = 0;
   size_t global_size = 8;
-  size_t local_size  = 4;
-  err = clEnqueueNDRangeKernel(queue, kernel, 1, &offset, &global_size, &local_size, 0, NULL, NULL);   handleError("Couldn't enqueue the kernel.");
+  size_t local_size  = 4; // 8 / 4 = 2 work groups with separate local memory
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);      handleError("Couldn't enqueue the kernel.");
   err = clEnqueueReadBuffer(queue, data_buffer, CL_BLOCKING, 0, sizeof(data), data, 0, NULL, NULL);    handleError("Couldn't read from the buffer.");
   // clang-format on
 

@@ -51,7 +51,7 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
     size_t log_size;
     clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
     char *program_log = (char *)malloc(log_size);
-    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
+    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
     printf("%s\n", program_log);
     free(program_log);
     exit(EXIT_FAILURE);
