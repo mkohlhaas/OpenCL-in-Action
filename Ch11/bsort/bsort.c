@@ -37,7 +37,7 @@ cl_device_id create_device() {
   return device;
 }
 
-cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename) {
+cl_program build_program(cl_context ctx, cl_device_id device, const char *filename) {
   FILE *program_handle = fopen(filename, "r");
   if (program_handle == NULL) {
     perror("Couldn't find the program file");
@@ -57,14 +57,13 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
   if (err) {
     size_t log_size;
-    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
     char *program_log = (char *)malloc(log_size);
-    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
     printf("%s\n", program_log);
     free(program_log);
     exit(EXIT_FAILURE);
   }
-
   return program;
 }
 
@@ -77,162 +76,80 @@ int main(void) {
     data[i] = rand();
   }
 
+  // clang-format off
   cl_device_id device = create_device();
-  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-  handleError("Couldn't create a context.");
+  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                             handleError("Couldn't create a context.");
 
   cl_program program = build_program(context, device, PROGRAM_FILE);
 
   /* Create kernels */
-  cl_kernel kernel_init = clCreateKernel(program, BSORT_INIT, &err);
-  if (err < 0) {
-    perror("Couldn't create the initial kernel");
-    exit(1);
-  };
-  cl_kernel kernel_stage_0 = clCreateKernel(program, BSORT_STAGE_0, &err);
-  if (err < 0) {
-    perror("Couldn't create the stage_0 kernel");
-    exit(1);
-  };
-  cl_kernel kernel_stage_n = clCreateKernel(program, BSORT_STAGE_N, &err);
-  if (err < 0) {
-    perror("Couldn't create the stage_n kernel");
-    exit(1);
-  };
-  cl_kernel kernel_merge = clCreateKernel(program, BSORT_MERGE, &err);
-  if (err < 0) {
-    perror("Couldn't create the merge kernel");
-    exit(1);
-  };
-  cl_kernel kernel_merge_last = clCreateKernel(program, BSORT_MERGE_LAST, &err);
-  if (err < 0) {
-    perror("Couldn't create the merge_last kernel");
-    exit(1);
-  };
+  cl_kernel kernel_init       = clCreateKernel(program, BSORT_INIT, &err);                                                              handleError("Couldn't create the initial kernel.");
+  cl_kernel kernel_stage_0    = clCreateKernel(program, BSORT_STAGE_0, &err);                                                           handleError("Couldn't create the stage 0 kernel.");
+  cl_kernel kernel_stage_n    = clCreateKernel(program, BSORT_STAGE_N, &err);                                                           handleError("Couldn't create the stage n kernel.");
+  cl_kernel kernel_merge      = clCreateKernel(program, BSORT_MERGE, &err);                                                             handleError("Couldn't create the merge kernel.");
+  cl_kernel kernel_merge_last = clCreateKernel(program, BSORT_MERGE_LAST, &err);                                                        handleError("Couldn't create the merge last kernel.");
 
   /* Determine maximum work-group size */
   size_t local_size;
-  err = clGetKernelWorkGroupInfo(kernel_init, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local_size), &local_size, NULL);
-  if (err < 0) {
-    perror("Couldn't find the maximum work-group size");
-    exit(1);
-  };
+  err = clGetKernelWorkGroupInfo(kernel_init, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local_size), &local_size, NULL);                handleError("Couldn't find the maximum work-group size.");
   local_size = (int)pow(2, trunc(log2(local_size)));
 
   /* Create buffer */
-  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);
-  if (err < 0) {
-    perror("Couldn't create a buffer");
-    exit(1);
-  };
+  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);                     handleError("Couldn't create a buffer.");
 
   /* Create kernel argument */
-  err = clSetKernelArg(kernel_init, 0, sizeof(cl_mem), &data_buffer);
+  err  = clSetKernelArg(kernel_init, 0, sizeof(cl_mem), &data_buffer);
   err |= clSetKernelArg(kernel_stage_0, 0, sizeof(cl_mem), &data_buffer);
   err |= clSetKernelArg(kernel_stage_n, 0, sizeof(cl_mem), &data_buffer);
   err |= clSetKernelArg(kernel_merge, 0, sizeof(cl_mem), &data_buffer);
-  err |= clSetKernelArg(kernel_merge_last, 0, sizeof(cl_mem), &data_buffer);
-  if (err < 0) {
-    printf("Couldn't set a kernel argument");
-    exit(1);
-  };
+  err |= clSetKernelArg(kernel_merge_last, 0, sizeof(cl_mem), &data_buffer);                                                            handleError("Couldn't set a kernel argument.");
 
   /* Create kernel argument */
-  err = clSetKernelArg(kernel_init, 1, 8 * local_size * sizeof(float), NULL);
+  err  = clSetKernelArg(kernel_init, 1, 8 * local_size * sizeof(float), NULL);
   err |= clSetKernelArg(kernel_stage_0, 1, 8 * local_size * sizeof(float), NULL);
   err |= clSetKernelArg(kernel_stage_n, 1, 8 * local_size * sizeof(float), NULL);
-  err |= clSetKernelArg(kernel_merge, 1, 8 * local_size * sizeof(float), NULL);
+  err |= clSetKernelArg(kernel_merge, 1, 8 * local_size * sizeof(float), NULL);                                                         handleError("Couldn't set a kernel argument.");
   err |= clSetKernelArg(kernel_merge_last, 1, 8 * local_size * sizeof(float), NULL);
-  if (err < 0) {
-    printf("Couldn't set a kernel argument");
-    exit(1);
-  };
 
-  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
-  handleError("Couldn't create a command queue");
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);                                             handleError("Couldn't create a command queue.");
 
   /* Enqueue initial sorting kernel */
   size_t global_size = NUM_FLOATS / 8;
   if (global_size < local_size) {
     local_size = global_size;
   }
-  err = clEnqueueNDRangeKernel(queue, kernel_init, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-  if (err < 0) {
-    perror("Couldn't enqueue the kernel");
-    exit(1);
-  }
+  err = clEnqueueNDRangeKernel(queue, kernel_init, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                                  handleError("Couldn't enqueue the kernel.");
 
   /* Execute further stages */
   cl_uint num_stages = global_size / local_size;
   for (cl_uint high_stage = 2; high_stage < num_stages; high_stage <<= 1) {
-
     err = clSetKernelArg(kernel_stage_0, 2, sizeof(int), &high_stage);
-    err |= clSetKernelArg(kernel_stage_n, 3, sizeof(int), &high_stage);
-    if (err < 0) {
-      printf("Couldn't set a kernel argument");
-      exit(1);
-    };
+    err |= clSetKernelArg(kernel_stage_n, 3, sizeof(int), &high_stage);                                                                 handleError("Couldn't set a kernel argument.");
 
     for (cl_uint stage = high_stage; stage > 1; stage >>= 1) {
-
-      err = clSetKernelArg(kernel_stage_n, 2, sizeof(int), &stage);
-      if (err < 0) {
-        printf("Couldn't set a kernel argument");
-        exit(1);
-      };
-
-      err = clEnqueueNDRangeKernel(queue, kernel_stage_n, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-      if (err < 0) {
-        perror("Couldn't enqueue the kernel");
-        exit(1);
-      }
+      err = clSetKernelArg(kernel_stage_n, 2, sizeof(int), &stage);                                                                     handleError("Couldn't set a kernel argument.");
+      err = clEnqueueNDRangeKernel(queue, kernel_stage_n, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                           handleError("Couldn't enqueue the kernel.");
     }
-
-    err = clEnqueueNDRangeKernel(queue, kernel_stage_0, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-    if (err < 0) {
-      perror("Couldn't enqueue the kernel");
-      exit(1);
-    }
+    err = clEnqueueNDRangeKernel(queue, kernel_stage_0, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                             handleError("Couldn't enqueue the kernel.");
   }
 
   /* Set the sort direction */
   cl_int direction = DIRECTION;
   err = clSetKernelArg(kernel_merge, 3, sizeof(int), &direction);
-  err |= clSetKernelArg(kernel_merge_last, 2, sizeof(int), &direction);
-  if (err < 0) {
-    printf("Couldn't set a kernel argument");
-    exit(1);
-  };
+  err |= clSetKernelArg(kernel_merge_last, 2, sizeof(int), &direction);                                                                 handleError("Couldn't set a kernel argument.");
 
   /* Perform the bitonic merge */
   for (cl_int stage = num_stages; stage > 1; stage >>= 1) {
-
-    err = clSetKernelArg(kernel_merge, 2, sizeof(int), &stage);
-    if (err < 0) {
-      printf("Couldn't set a kernel argument");
-      exit(1);
-    };
-
-    err = clEnqueueNDRangeKernel(queue, kernel_merge, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-    if (err < 0) {
-      perror("Couldn't enqueue the kernel");
-      exit(1);
-    }
+    err = clSetKernelArg(kernel_merge, 2, sizeof(int), &stage);                                                                         handleError("Couldn't set a kernel argument.");
+    err = clEnqueueNDRangeKernel(queue, kernel_merge, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                               handleError("Couldn't enqueue the kernel.");
   }
-  err = clEnqueueNDRangeKernel(queue, kernel_merge_last, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-  if (err < 0) {
-    perror("Couldn't enqueue the kernel");
-    exit(1);
-  }
+  err = clEnqueueNDRangeKernel(queue, kernel_merge_last, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                            handleError("Couldn't enqueue the kernel.");
 
   /* Read the result */
-  err = clEnqueueReadBuffer(queue, data_buffer, CL_TRUE, 0, sizeof(data), &data, 0, NULL, NULL);
-  if (err < 0) {
-    perror("Couldn't read the buffer");
-    exit(1);
-  }
+  err = clEnqueueReadBuffer(queue, data_buffer, CL_BLOCKING, 0, sizeof(data), &data, 0, NULL, NULL);                                    handleError("Couldn't read the buffer");
+  // clang-format on
 
-  cl_int check = 1;
+  cl_int check = CL_TRUE;
 
   /* Check ascending sort */
   if (direction == 0) {
@@ -258,9 +175,9 @@ int main(void) {
   printf("Local size: %zu\n", local_size);
   printf("Global size: %zu\n", global_size);
   if (check) {
-    printf("Bitonic sort succeeded.\n");
+    printf("Bitonic sort SUCCEEDED.\n");
   } else {
-    printf("Bitonic sort failed.\n");
+    printf("Bitonic sort FAILED.\n");
   }
 
   clReleaseMemObject(data_buffer);

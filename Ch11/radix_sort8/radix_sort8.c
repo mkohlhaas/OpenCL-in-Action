@@ -78,82 +78,32 @@ int main() {
     data[j] = temp;
   }
 
-  /* Print input */
   printf("Input: \n");
   for (int i = 0; i < NUM_SHORTS; i++) {
     printf("data[%d]: %hu\n", i, data[i]);
   }
 
-  /* Identify a platform */
+  // clang-format off
   cl_platform_id platform;
-  err = clGetPlatformIDs(1, &platform, NULL);
-  handleError("Couldn't identify a platform");
+  err = clGetPlatformIDs(1, &platform, NULL);                                                                                    handleError("Couldn't identify a platform.");
 
-  /* Access a device */
   cl_device_id device;
-  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
-  handleError("Couldn't access any devices");
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);                                                          handleError("Couldn't access any devices.");
 
-  /* Create a context */
-  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-  handleError("Couldn't create a context");
+  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                      handleError("Couldn't create a context.");
+  cl_program program = build_program(context, device, PROGRAM_FILE);
+  cl_kernel kernel   = clCreateKernel(program, KERNEL_FUNC, &err);                                                               handleError("Couldn't create a kernel.");
+  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);              handleError("Couldn't create a buffer.");
 
-  /* Read program file and place content into buffer */
-  FILE *program_handle = fopen(PROGRAM_FILE, "r");
-  if (program_handle == NULL) {
-    perror("Couldn't find the program file");
-    exit(EXIT_FAILURE);
-  }
-  fseek(program_handle, 0, SEEK_END);
-  size_t program_size = ftell(program_handle);
-  rewind(program_handle);
-  char *program_buffer = (char *)calloc(program_size + 1, sizeof(char));
-  fread(program_buffer, sizeof(char), program_size, program_handle);
-  fclose(program_handle);
+  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buffer);                                                                 handleError("Couldn't set a kernel argument.");
 
-  /* Create program from file */
-  cl_program program = clCreateProgramWithSource(context, 1, (const char **)&program_buffer, &program_size, &err);
-  handleError("Couldn't create the program");
-  free(program_buffer);
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);                                      handleError("Couldn't create a command queue.");
 
-  /* Build program */
-  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-  if (err) {
-    /* Find size of log and print to std output */
-    size_t log_size;
-    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-    char *program_log = (char *)calloc(log_size + 1, sizeof(char));
-    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
-    printf("%s\n", program_log);
-    free(program_log);
-    exit(1);
-  }
-
-  /* Create a kernel */
-  cl_kernel kernel = clCreateKernel(program, KERNEL_FUNC, &err);
-  handleError("Couldn't create a kernel");
-
-  /* Create buffer to hold sorted data */
-  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);
-  handleError("Couldn't create a buffer");
-
-  /* Create kernel argument */
-  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buffer);
-  handleError("Couldn't set a kernel argument");
-
-  /* Create a command queue */
-  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
-  handleError("Couldn't create a command queue");
-
-  /* Enqueue kernel */
   const size_t global_work_size[] = {1};
   const size_t local_work_size[] = {1};
-  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);
-  handleError("Couldn't enqueue the kernel");
-
-  /* Read and print the result */
-  err = clEnqueueReadBuffer(queue, data_buffer, CL_TRUE, 0, sizeof(data), &data, 0, NULL, NULL);
-  handleError("Couldn't read the buffer");
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);                        handleError("Couldn't enqueue the kernel.");
+  err = clEnqueueReadBuffer(queue, data_buffer, CL_BLOCKING, 0, sizeof(data), &data, 0, NULL, NULL);                             handleError("Couldn't read the buffer.");
+  // clang-format on
 
   /* Print output */
   printf("\nOutput:\n");
@@ -170,10 +120,11 @@ int main() {
     }
   }
 
-  if (check)
+  if (check) {
     printf("The radix sort SUCCEEDED.\n");
-  else
+  } else {
     printf("The radix sort FAILED.\n");
+  }
 
   clReleaseMemObject(data_buffer);
   clReleaseKernel(kernel);

@@ -15,32 +15,58 @@ void handleError(char *message) {
   }
 }
 
+cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename) {
+  FILE *program_handle = fopen(filename, "r");
+  if (program_handle == NULL) {
+    perror("Couldn't find the program file");
+    exit(EXIT_FAILURE);
+  }
+  fseek(program_handle, 0, SEEK_END);
+  size_t program_size = ftell(program_handle);
+  rewind(program_handle);
+  char *program_buffer = (char *)malloc(program_size);
+  fread(program_buffer, sizeof(char), program_size, program_handle);
+  fclose(program_handle);
+
+  cl_program program = clCreateProgramWithSource(ctx, 1, (const char **)&program_buffer, &program_size, &err);
+  handleError("Couldn't create the program");
+  free(program_buffer);
+
+  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+  if (err) {
+    size_t log_size;
+    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    char *program_log = (char *)malloc(log_size);
+    clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
+    printf("%s\n", program_log);
+    free(program_log);
+    exit(EXIT_FAILURE);
+  }
+
+  return program;
+}
+
 int main() {
 
-  /* Identify a platform */
+  // clang-format off
+
   cl_platform_id platform;
-  err = clGetPlatformIDs(1, &platform, NULL);
-  handleError("Couldn't identify a platform.");
+  cl_device_id   device;
+  err = clGetPlatformIDs(1, &platform, NULL);                                                                               handleError("Couldn't identify a platform.");
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);                                                     handleError("Couldn't access any devices.");
 
-  /* Access a device */
-  cl_device_id device;
-  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
-  handleError("Couldn't access any devices.");
-
-  /* Determine global size and local size */
   size_t global_size;
   size_t local_size;
-  err = clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(global_size), &global_size, NULL);
-  handleError("Couldn't get device info.");
-  err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(local_size), &local_size, NULL);
-  handleError("Couldn't get device info.");
+  err = clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS,   sizeof(global_size), &global_size, NULL);                    handleError("Couldn't get device info.");
+  err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(local_size),  &local_size,  NULL);                    handleError("Couldn't get device info.");
+  fprintf(stderr, "Device:\n");
+  fprintf(stderr, "  compute units: %zu\n", global_size);
   global_size *= local_size;
+  fprintf(stderr, "  local size:    %zu\n  global size:   %zu\n\n", local_size, global_size);
 
-  /* Create a context */
-  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-  handleError("Couldn't create a context.");
+  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                 handleError("Couldn't create a context.");
 
-  /* Read program file and place content into buffer */
+  /* read program file and place content into buffer */
   FILE *program_handle = fopen(PROGRAM_FILE, "r");
   if (!program_handle) {
     fprintf(stderr, "Couldn't find the program file.");
@@ -53,7 +79,7 @@ int main() {
   fread(program_buffer, sizeof(char), program_size, program_handle);
   fclose(program_handle);
 
-  /* Read text file and place content into buffer */
+  /* read text file and place content into buffer */
   FILE *text_handle = fopen(TEXT_FILE, "r");
   if (!text_handle) {
     fprintf(stderr, "Couldn't find the text file.");
@@ -65,66 +91,49 @@ int main() {
   char *text = (char *)calloc(text_size, sizeof(char));
   fread(text, sizeof(char), text_size, text_handle);
   fclose(text_handle);
-  int chars_per_item = text_size / global_size + 1;
+  int chars_per_work_item = text_size / global_size + 1;
+  fprintf(stderr, "Text:\n");
+  fprintf(stderr, "  text size:           %zu\n",  text_size);
+  fprintf(stderr, "  chars per work item: %d\n\n", chars_per_work_item);
 
-  /* Create program from file */
-  cl_program program = clCreateProgramWithSource(context, 1, (const char **)&program_buffer, &program_size, &err);
-  handleError("Couldn't create the program.");
+  cl_program program = clCreateProgramWithSource(context, 1, (const char **)&program_buffer, &program_size, &err);          handleError("Couldn't create the program.");
   free(program_buffer);
 
-  /* Build program */
+  /* build program and print build log */
   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+  size_t log_size;
+  err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);                                   handleError("Couldn't get build info.");
+  char *program_log = (char *)calloc(log_size, sizeof(char));
+  err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);                          handleError("Couldn't get build info.");
+  fprintf(stderr, "Build info:\n%s\n", program_log);
+  free(program_log);
   if (err) {
-    /* Find size of log and print to std output */
-    size_t log_size;
-    err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-    handleError("Couldn't get build info.");
-    char *program_log = (char *)calloc(log_size, sizeof(char));
-    err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
-    handleError("Couldn't get build info.");
-    printf("%s\n", program_log);
-    free(program_log);
     exit(EXIT_FAILURE);
   }
 
-  /* Create a kernel */
-  cl_kernel kernel = clCreateKernel(program, KERNEL_FUNC, &err);
-  handleError("Couldn't create a kernel.");
-
-  /* Create buffers to hold the text characters and count */
-  cl_mem text_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, text_size, text, &err);
-  handleError("Couldn't create a buffer.");
   int result[4] = {0, 0, 0, 0};
-  cl_mem result_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(result), result, &err);
-  handleError("Couldn't create a buffer.");
+  cl_kernel kernel     = clCreateKernel(program, KERNEL_FUNC, &err);                                                        handleError("Couldn't create a kernel.");
+  cl_mem text_buffer   = clCreateBuffer(context, CL_MEM_READ_ONLY  | CL_MEM_COPY_HOST_PTR, text_size, text, &err);          handleError("Couldn't create a buffer.");
+  cl_mem result_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(result), result, &err);   handleError("Couldn't create a buffer.");
 
-  /* Create kernel argument */
   char pattern[16] = "thatwithhavefrom";
-  err = clSetKernelArg(kernel, 0, sizeof(pattern), pattern);
-  err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &text_buffer);
-  err |= clSetKernelArg(kernel, 2, sizeof(chars_per_item), &chars_per_item);
-  err |= clSetKernelArg(kernel, 3, 4 * sizeof(int), NULL);
-  err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &result_buffer);
-  handleError("Couldn't set kernel arguments.");
+  err  = clSetKernelArg(kernel, 0, sizeof(pattern),             pattern);
+  err |= clSetKernelArg(kernel, 1, sizeof(cl_mem),              &text_buffer);
+  err |= clSetKernelArg(kernel, 2, sizeof(chars_per_work_item), &chars_per_work_item);
+  err |= clSetKernelArg(kernel, 3, 4 * sizeof(int),             NULL);
+  err |= clSetKernelArg(kernel, 4, sizeof(cl_mem),              &result_buffer);                                            handleError("Couldn't set kernel arguments.");
 
-  /* Create a command queue */
-  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
-  handleError("Couldn't create a command queue.");
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);                                 handleError("Couldn't create a command queue.");
 
-  /* Enqueue kernel */
-  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-  handleError("Couldn't enqueue the kernel.");
+  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                           handleError("Couldn't enqueue the kernel.");
+  err = clEnqueueReadBuffer(queue, result_buffer, CL_BLOCKING, 0, sizeof(result), &result, 0, NULL, NULL);                  handleError("Couldn't read the buffer.");
 
-  /* Read and print the result */
-  err = clEnqueueReadBuffer(queue, result_buffer, CL_TRUE, 0, sizeof(result), &result, 0, NULL, NULL);
-  handleError("Couldn't read the buffer.");
+  fprintf(stderr, "Results:\n");
+  fprintf(stderr, "  Occurrences of `that`: %d\n", result[0]);
+  fprintf(stderr, "  Occurrences of `with`: %d\n", result[1]);
+  fprintf(stderr, "  Occurrences of `have`: %d\n", result[2]);
+  fprintf(stderr, "  Occurrences of `from`: %d\n", result[3]);
 
-  printf("Number of occurrences of 'that': %d\n", result[0]);
-  printf("Number of occurrences of 'with': %d\n", result[1]);
-  printf("Number of occurrences of 'have': %d\n", result[2]);
-  printf("Number of occurrences of 'from': %d\n", result[3]);
-
-  /* Deallocate resources */
   clReleaseMemObject(result_buffer);
   clReleaseMemObject(text_buffer);
   clReleaseKernel(kernel);

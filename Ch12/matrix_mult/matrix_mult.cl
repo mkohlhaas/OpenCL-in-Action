@@ -4,23 +4,24 @@ kernel void matrix_mult(global float4 *a_mat,
 
    float sum;
 
-   int num_rows = get_global_size(0);
+   int num_rows        = get_global_size(0);
    int vectors_per_row = num_rows/4;
-   int start = get_global_id(0) * vectors_per_row;
+   int start           = get_global_id(0) * vectors_per_row;
    a_mat += start;
    c_mat += start*4;
 
-   for(int i=0; i<num_rows; i++) {
+   for(int i=0; i < num_rows; i++) {
       sum = 0.0f;
-      for(int j=0; j<vectors_per_row; j++) {
+      for(int j = 0; j < vectors_per_row; j++) {
          sum += dot(a_mat[j], b_mat[i * vectors_per_row + j]);
       }
       c_mat[i] = sum;
    }
 }
 
-inline void on_diagonal_transpose(int row_size,
-   local float4 *l_mat, global float4 *src) {
+inline void on_diagonal_transpose(       int     row_size,
+                                  local  float4 *l_mat,
+                                  global float4 *src) {
 
    /* Read 4x4 block from global memory to local memory */
    l_mat[0] = src[0];
@@ -29,18 +30,15 @@ inline void on_diagonal_transpose(int row_size,
    l_mat[3] = src[3*row_size];
 
    /* Write back to global memory in transposed order */
-   src[0] =
-         (float4)(l_mat[0].x, l_mat[1].x, l_mat[2].x, l_mat[3].x);
-   src[row_size] =
-         (float4)(l_mat[0].y, l_mat[1].y, l_mat[2].y, l_mat[3].y);
-   src[2*row_size] =
-         (float4)(l_mat[0].z, l_mat[1].z, l_mat[2].z, l_mat[3].z);
-   src[3*row_size] =
-         (float4)(l_mat[0].w, l_mat[1].w, l_mat[2].w, l_mat[3].w);
+   src[0]          = (float4)(l_mat[0].x, l_mat[1].x, l_mat[2].x, l_mat[3].x);
+   src[row_size]   = (float4)(l_mat[0].y, l_mat[1].y, l_mat[2].y, l_mat[3].y);
+   src[2*row_size] = (float4)(l_mat[0].z, l_mat[1].z, l_mat[2].z, l_mat[3].z);
+   src[3*row_size] = (float4)(l_mat[0].w, l_mat[1].w, l_mat[2].w, l_mat[3].w);
 }
 
 kernel void transpose(global float4 *g_mat,
-   local float4 *l_mat, uint size) {
+                       local float4 *l_mat,
+                             uint    size) {
 
    global float4 *src, *dst;
 
@@ -51,7 +49,7 @@ kernel void transpose(global float4 *g_mat,
       col -= size--;
       row++;
    }
-   col += row;
+   col  += row;
    size += row;
 
    /* Read source block into local memory */
@@ -64,14 +62,10 @@ kernel void transpose(global float4 *g_mat,
 
    /* Process block on diagonal */
    if(row == col) {
-      src[0] =
-         (float4)(l_mat[0].x, l_mat[1].x, l_mat[2].x, l_mat[3].x);
-      src[size] =
-         (float4)(l_mat[0].y, l_mat[1].y, l_mat[2].y, l_mat[3].y);
-      src[2*size] =
-         (float4)(l_mat[0].z, l_mat[1].z, l_mat[2].z, l_mat[3].z);
-      src[3*size] =
-         (float4)(l_mat[0].w, l_mat[1].w, l_mat[2].w, l_mat[3].w);
+      src[0]      = (float4)(l_mat[0].x, l_mat[1].x, l_mat[2].x, l_mat[3].x);
+      src[size]   = (float4)(l_mat[0].y, l_mat[1].y, l_mat[2].y, l_mat[3].y);
+      src[2*size] = (float4)(l_mat[0].z, l_mat[1].z, l_mat[2].z, l_mat[3].z);
+      src[3*size] = (float4)(l_mat[0].w, l_mat[1].w, l_mat[2].w, l_mat[3].w);
    }
    /* Process block off diagonal */
    else {
@@ -83,23 +77,15 @@ kernel void transpose(global float4 *g_mat,
       l_mat[7] = dst[3*size];
 
       /* Set elements of destination block */
-      dst[0] =
-         (float4)(l_mat[0].x, l_mat[1].x, l_mat[2].x, l_mat[3].x);
-      dst[size] =
-         (float4)(l_mat[0].y, l_mat[1].y, l_mat[2].y, l_mat[3].y);
-      dst[2*size] =
-         (float4)(l_mat[0].z, l_mat[1].z, l_mat[2].z, l_mat[3].z);
-      dst[3*size] =
-         (float4)(l_mat[0].w, l_mat[1].w, l_mat[2].w, l_mat[3].w);
+      dst[0]      = (float4)(l_mat[0].x, l_mat[1].x, l_mat[2].x, l_mat[3].x);
+      dst[size]   = (float4)(l_mat[0].y, l_mat[1].y, l_mat[2].y, l_mat[3].y);
+      dst[2*size] = (float4)(l_mat[0].z, l_mat[1].z, l_mat[2].z, l_mat[3].z);
+      dst[3*size] = (float4)(l_mat[0].w, l_mat[1].w, l_mat[2].w, l_mat[3].w);
 
       /* Set elements of source block */
-      src[0] =
-         (float4)(l_mat[4].x, l_mat[5].x, l_mat[6].x, l_mat[7].x);
-      src[size] =
-         (float4)(l_mat[4].y, l_mat[5].y, l_mat[6].y, l_mat[7].y);
-      src[2*size] =
-         (float4)(l_mat[4].z, l_mat[5].z, l_mat[6].z, l_mat[7].z);
-      src[3*size] =
-         (float4)(l_mat[4].w, l_mat[5].w, l_mat[6].w, l_mat[7].w);
+      src[0]      = (float4)(l_mat[4].x, l_mat[5].x, l_mat[6].x, l_mat[7].x);
+      src[size]   = (float4)(l_mat[4].y, l_mat[5].y, l_mat[6].y, l_mat[7].y);
+      src[2*size] = (float4)(l_mat[4].z, l_mat[5].z, l_mat[6].z, l_mat[7].z);
+      src[3*size] = (float4)(l_mat[4].w, l_mat[5].w, l_mat[6].w, l_mat[7].w);
    }
 }

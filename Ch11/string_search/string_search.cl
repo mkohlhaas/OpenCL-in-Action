@@ -1,10 +1,11 @@
-kernel void string_search(char16       pattern,
-                          global char* text,
-                          int          chars_per_item,
-                          local int*   local_result,
-                          global int*  global_result) {
+kernel void string_search(       char16 pattern,
+                          global char*  text,
+                                 int    chars_per_work_item,
+                          local  int*   local_result,
+                          global int*   global_result) {
 
-   char16 text_vector, check_vector;
+   char16 text_vector;
+   char16 check_vector;
 
    // initialize local data
    local_result[0] = 0;
@@ -15,10 +16,10 @@ kernel void string_search(char16       pattern,
    // make sure previous processing has completed
    barrier(CLK_LOCAL_MEM_FENCE);
 
-   int item_offset = get_global_id(0) * chars_per_item;
+   int item_offset = get_global_id(0) * chars_per_work_item;
 
    // iterate through characters in text
-   for(int i=item_offset; i < item_offset + chars_per_item; i++) {
+   for(int i = item_offset; i < item_offset + chars_per_work_item; i++) {
 
       // load global text into private buffer
       text_vector = vload16(0, text + i);
@@ -28,7 +29,7 @@ kernel void string_search(char16       pattern,
 
       // Check for 'that'
       if(all(check_vector.s0123)) {
-         atomic_inc(local_result);
+         atomic_inc(local_result + 0);
       }
 
       // check for 'with'
@@ -52,7 +53,7 @@ kernel void string_search(char16       pattern,
 
    // perform global reduction
    if(get_local_id(0) == 0) {
-      atomic_add(global_result, local_result[0]);
+      atomic_add(global_result + 0, local_result[0]);
       atomic_add(global_result + 1, local_result[1]);
       atomic_add(global_result + 2, local_result[2]);
       atomic_add(global_result + 3, local_result[3]);

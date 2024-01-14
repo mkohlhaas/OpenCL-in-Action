@@ -1,4 +1,5 @@
-kernel void vec_reflect(float4 x_vec, float4 u,
+kernel void vec_reflect(       float4  x_vec,
+                               float4  u,
                         global float4* x_prime) {
 
    float4 p_mat[4];
