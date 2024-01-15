@@ -1,7 +1,14 @@
-kernel void conj_grad(int dim, int num_vals, local float *r,
-                      local float *x, local float* A_times_p, local float *p,
-                      global int *rows, global int *cols, global float *A,
-                      global float *b, global float *result) {
+kernel void conj_grad(       int    dim,
+                             int    num_vals,
+                      local  float *r,
+                      local  float *x,
+                      local  float *A_times_p,
+                      local  float *p,
+                      global int   *rows,
+                      global int   *cols,
+                      global float *A,
+                      global float *b,
+                      global float *result) {
 
    local float alpha, r_length, old_r_dot_r, new_r_dot_r;
    local int iteration;
@@ -12,7 +19,7 @@ kernel void conj_grad(int dim, int num_vals, local float *r,
    float Ap_dot_p;
 
    /* Find matrix values for each work-item */
-   for(int i=id; i<num_vals; i++) {
+   for(int i = id; i < num_vals; i++) {
       if((rows[i] == id) && (start_index == -1))
          start_index = i;
       else if((rows[i] == id+1) && (end_index == -1))  {

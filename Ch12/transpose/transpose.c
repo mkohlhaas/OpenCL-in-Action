@@ -77,18 +77,20 @@ int main(void) {
   cl_mem data_buffer  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(data), data, &err);   handleError("Couldn't create a buffer.");
 
   size_t global_size = (MATRIX_DIM / 4 * (MATRIX_DIM / 4 + 1)) / 2;
-  fprintf(stderr, "global size: %zu\n", global_size);
+  fprintf(stderr, "global size:       %zu\n", global_size);
   cl_ulong mem_size;
   err = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(mem_size), &mem_size, NULL);                          handleError("Couldn't get device info.");
+  fprintf(stderr, "local memory size: %zu\n", mem_size);
+  mem_size -= 1024;
 
   cl_uint matrix_dim = MATRIX_DIM / 4;
+  fprintf(stderr, "matrix dimension:  %u\n", matrix_dim);
   err  = clSetKernelArg(kernel, 0, sizeof(cl_mem),     &data_buffer);
   err |= clSetKernelArg(kernel, 1, (size_t)mem_size,   NULL);
   err |= clSetKernelArg(kernel, 2, sizeof(matrix_dim), &matrix_dim);                                                   handleError("Couldn't set a kernel argument.");
 
   cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);                            handleError("Couldn't create a command queue.");
   err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size, NULL, 0, NULL, NULL);                             handleError("Couldn't enqueue the kernel.");
-  // TODO: use clGetKernelWorkGroupInfo to find out error cause
   err = clEnqueueReadBuffer(queue, data_buffer, CL_BLOCKING, 0, sizeof(data), data, 0, NULL, NULL);                    handleError("Couldn't read the buffer.");
   // clang-format on
 

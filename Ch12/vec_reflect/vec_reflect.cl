@@ -5,7 +5,7 @@ kernel void vec_reflect(       float4  x_vec,
    float4 p_mat[4];
 
    /* Multiply u by sqrt(2)/|u| */
-   u *= M_SQRT2_F/length(u);
+   u *= M_SQRT2_F / length(u);
 
    /* Compute Householder matrix */
    p_mat[0] = (float4)(1.0f, 0.0f, 0.0f, 0.0f) - (u * u.x);

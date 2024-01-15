@@ -94,14 +94,14 @@ int main(void) {
 
   // clang-format off
 
-  cl_device_id device = create_device();
-  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                             handleError("Couldn't create a context.");
+  cl_device_id device   = create_device();
+  cl_context   context  = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                          handleError("Couldn't create a context.");
 
-  cl_program program         = build_program(context, device, PROGRAM_FILE);
-  cl_kernel transpose_kernel = clCreateKernel(program, TRANSPOSE_FUNC, &err);                                           handleError("Couldn't create a kernel.");
-  cl_kernel mult_kernel      = clCreateKernel(program, MULT_FUNC, &err);                                                handleError("Couldn't create a kernel.");
+  cl_program program          = build_program(context, device, PROGRAM_FILE);
+  cl_kernel  transpose_kernel = clCreateKernel(program, TRANSPOSE_FUNC, &err);                                          handleError("Couldn't create a kernel.");
+  cl_kernel  mult_kernel      = clCreateKernel(program, MULT_FUNC, &err);                                               handleError("Couldn't create a kernel.");
 
-  cl_mem a_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(a_mat), a_mat, &err);      handleError("Couldn't create a buffer.");
+  cl_mem a_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY  | CL_MEM_COPY_HOST_PTR, sizeof(a_mat), a_mat, &err);      handleError("Couldn't create a buffer.");
   cl_mem b_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(b_mat), b_mat, &err);      handleError("Couldn't create a buffer.");
   cl_mem c_buffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(c_mat), NULL, &err);                              handleError("Couldn't create a buffer.");
 
@@ -110,6 +110,7 @@ int main(void) {
   size_t global_size = (MATRIX_DIM / 4 * (MATRIX_DIM / 4 + 1)) / 2;
   cl_ulong mem_size;
   err = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(mem_size), &mem_size, NULL);                           handleError("Couldn't get device info.");
+  mem_size -= 1024;
 
   cl_uint matrix_dim = MATRIX_DIM / 4;
   err  = clSetKernelArg(transpose_kernel, 0, sizeof(cl_mem), &b_buffer);

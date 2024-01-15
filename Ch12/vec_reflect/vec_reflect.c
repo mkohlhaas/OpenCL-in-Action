@@ -78,7 +78,7 @@ int main(void) {
   /* Create kernel argument */
   float x[4] = {1.0f, 2.0f, 3.0f, 4.0f};
   float u[4] = {0.0f, 5.0f, 0.0f, 0.0f};
-  err = clSetKernelArg(kernel, 0, sizeof(x), x);
+  err  = clSetKernelArg(kernel, 0, sizeof(x), x);
   err |= clSetKernelArg(kernel, 1, sizeof(u), u);
   err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &reflect_buffer);                                         handleError("Couldn't set a kernel argument.");
 

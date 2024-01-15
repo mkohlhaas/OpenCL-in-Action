@@ -2,7 +2,8 @@ kernel void transpose(global float4 *g_mat,
                       local  float4 *l_mat,
                              uint    size) {
 
-   global float4 *src, *dst;
+   global float4 *src;
+   global float4 *dst;
 
    /* Determine row and column location */
    int col = get_global_id(0);
@@ -18,9 +19,9 @@ kernel void transpose(global float4 *g_mat,
    src = g_mat + row * size * 4 + col;
    l_mat += get_local_id(0)*8;
    l_mat[0] = src[0];
-   l_mat[1] = src[size];
-   l_mat[2] = src[2*size];
-   l_mat[3] = src[3*size];
+   l_mat[1] = src[1 * size];
+   l_mat[2] = src[2 * size];
+   l_mat[3] = src[3 * size];
 
    /* Process block on diagonal */
    if(row == col) {
