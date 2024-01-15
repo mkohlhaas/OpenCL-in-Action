@@ -1,309 +1,185 @@
-#define _CRT_SECURE_NO_WARNINGS
-#define PROGRAM_FILE "fft.cl"
-#define INIT_FUNC "fft_init"
-#define STAGE_FUNC "fft_stage"
-#define SCALE_FUNC "fft_scale"
-
-/* Each point contains 2 floats - 1 real, 1 imaginary */
-#define NUM_POINTS 8192
-
-/* 1 - forward FFT, -1 - inverse FFT */
-#define DIRECTION 1
-
 #include "fft_check.c"
-
+#include <CL/cl.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#ifdef MAC
-#include <OpenCL/cl.h>
-#else
-#include <CL/cl.h>
-#endif
+#define PROGRAM_FILE "fft.cl"
+#define INIT_FUNC "fft_init"
+#define STAGE_FUNC "fft_stage"
+#define SCALE_FUNC "fft_scale"
+/* Each point contains 2 floats - 1 real, 1 imaginary */
+#define NUM_POINTS 8192
+/* 1 - forward FFT, -1 - inverse FFT */
+#define DIRECTION 1
 
-/* Find a GPU or CPU associated with the first available platform */
+cl_int err;
+
+void handleError(char *message) {
+  if (err) {
+    fprintf(stderr, "%s\n", message);
+    exit(EXIT_FAILURE);
+  }
+}
+
 cl_device_id create_device() {
+  cl_platform_id platform;
+  err = clGetPlatformIDs(1, &platform, NULL);
+  handleError("Couldn't identify a platform");
 
-   cl_platform_id platform;
-   cl_device_id dev;
-   int err;
+  cl_device_id device;
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
+  if (err == CL_DEVICE_NOT_FOUND) {
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &device, NULL);
+  }
+  handleError("Couldn't access any devices");
 
-   /* Identify a platform */
-   err = clGetPlatformIDs(1, &platform, NULL);
-   if(err < 0) {
-      perror("Couldn't identify a platform");
-      exit(1);
-   } 
-
-   /* Access a device */
-   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
-   if(err == CL_DEVICE_NOT_FOUND) {
-      err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
-   }
-   if(err < 0) {
-      perror("Couldn't access any devices");
-      exit(1);   
-   }
-
-   return dev;
+  return device;
 }
 
-/* Create program from a file and compile it */
-cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename) {
+cl_program build_program(cl_context ctx, cl_device_id device, const char *filename) {
+  FILE *program_handle = fopen(filename, "r");
+  if (program_handle == NULL) {
+    perror("Couldn't find the program file");
+    exit(EXIT_FAILURE);
+  }
+  fseek(program_handle, 0, SEEK_END);
+  size_t program_size = ftell(program_handle);
+  rewind(program_handle);
+  char *program_buffer = (char *)malloc(program_size);
+  fread(program_buffer, sizeof(char), program_size, program_handle);
+  fclose(program_handle);
 
-   cl_program program;
-   FILE *program_handle;
-   char *program_buffer, *program_log;
-   size_t program_size, log_size;
-   int err;
+  cl_program program = clCreateProgramWithSource(ctx, 1, (const char **)&program_buffer, &program_size, &err);
+  handleError("Couldn't create the program");
+  free(program_buffer);
 
-   /* Read program file and place content into buffer */
-   program_handle = fopen(filename, "r");
-   if(program_handle == NULL) {
-      perror("Couldn't find the program file");
-      exit(1);
-   }
-   fseek(program_handle, 0, SEEK_END);
-   program_size = ftell(program_handle);
-   rewind(program_handle);
-   program_buffer = (char*)malloc(program_size + 1);
-   program_buffer[program_size] = '\0';
-   fread(program_buffer, sizeof(char), program_size, program_handle);
-   fclose(program_handle);
-
-   /* Create program from file */
-   program = clCreateProgramWithSource(ctx, 1, 
-      (const char**)&program_buffer, &program_size, &err);
-   if(err < 0) {
-      perror("Couldn't create the program");
-      exit(1);
-   }
-   free(program_buffer);
-
-   /* Build program */
-   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-   if(err < 0) {
-
-      /* Find size of log and print to std output */
-      clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 
-            0, NULL, &log_size);
-      program_log = (char*) malloc(log_size + 1);
-      program_log[log_size] = '\0';
-      clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 
-            log_size + 1, program_log, NULL);
-      printf("%s\n", program_log);
-      free(program_log);
-      exit(1);
-   }
-
-   return program;
+  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+  if (err) {
+    size_t log_size;
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    char *program_log = (char *)malloc(log_size);
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, program_log, NULL);
+    printf("%s\n", program_log);
+    free(program_log);
+    exit(EXIT_FAILURE);
+  }
+  return program;
 }
 
-int main() {
+int main(void) {
 
-   /* Host/device data structures */
-   cl_device_id device;
-   cl_context context;
-   cl_command_queue queue;
-   cl_program program;
-   cl_kernel init_kernel, stage_kernel, scale_kernel;
-   cl_int err, i;
-   size_t global_size, local_size;
-   cl_ulong local_mem_size;
+  /* initialize data */
+  float data[NUM_POINTS * 2];
+  double check_input[NUM_POINTS][2];
+  srand(time(NULL));
+  for (int i = 0; i < NUM_POINTS; i++) {
+    data[2 * i] = rand();
+    data[2 * i + 1] = rand();
+    check_input[i][0] = data[2 * i];
+    check_input[i][1] = data[2 * i + 1];
+  }
 
-   /* Data and buffer */
-   int direction;
-   unsigned int num_points, points_per_group, stage;
-   float data[NUM_POINTS*2];
-   double error, check_input[NUM_POINTS][2], check_output[NUM_POINTS][2];
-   cl_mem input_buffer, data_buffer;
+  // clang-format off
+  cl_device_id device = create_device();
+  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                            handleError("Couldn't create a context.");
+  cl_program program = build_program(context, device, PROGRAM_FILE);
+  cl_kernel init_kernel = clCreateKernel(program, INIT_FUNC, &err);                                                                    handleError("Couldn't create the initial kernel.");
+  cl_kernel stage_kernel = clCreateKernel(program, STAGE_FUNC, &err);                                                                  handleError("Couldn't create the stage kernel.");
+  cl_kernel scale_kernel = clCreateKernel(program, SCALE_FUNC, &err);                                                                  handleError("Couldn't create the scale kernel.");
+  cl_mem input_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, 2 * NUM_POINTS * sizeof(float), data, &err);   handleError("Couldn't create a buffer.");
+  cl_mem data_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE, 2 * NUM_POINTS * sizeof(float), NULL, &err);                         handleError("Couldn't create a buffer.");
 
-   /* Initialize data */
-   srand(time(NULL));
-   for(i=0; i<NUM_POINTS; i++) {
-      data[2*i] = rand();
-      data[2*i+1] = rand();
-      check_input[i][0] = data[2*i];
-      check_input[i][1] = data[2*i+1];
-   }
+  /* Determine maximum work-group size */
+  size_t local_size;
+  err = clGetKernelWorkGroupInfo(init_kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local_size), &local_size, NULL);               handleError("Couldn't find the maximum work-group size.");
+  local_size = (int)pow(2, trunc(log2(local_size)));
 
-   /* Create a device and context */
-   device = create_device();
-   context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-   if(err < 0) {
-      perror("Couldn't create a context");
-      exit(1);   
-   }
+  /* Determine local memory size */
+  cl_ulong local_mem_size;
+  err = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(local_mem_size), &local_mem_size, NULL);                              handleError("Couldn't determine the local memory size.");
+  local_mem_size -= 2 * 1024;
 
-   /* Build the program */
-   program = build_program(context, device, PROGRAM_FILE);
+  /* initialize kernel arguments */
+  int direction = DIRECTION;
+  unsigned num_points = NUM_POINTS;
+  unsigned points_per_group = local_mem_size / (2 * sizeof(float));
+  if (points_per_group > num_points) {
+    points_per_group = num_points;
+  }
 
-   /* Create kernels for the FFT */
-   init_kernel = clCreateKernel(program, INIT_FUNC, &err);
-   if(err < 0) {
-      printf("Couldn't create the initial kernel: %d", err);
-      exit(1);
-   };
-   stage_kernel = clCreateKernel(program, STAGE_FUNC, &err);
-   if(err < 0) {
-      printf("Couldn't create the stage kernel: %d", err);
-      exit(1);
-   };
-   scale_kernel = clCreateKernel(program, SCALE_FUNC, &err);
-   if(err < 0) {
-      printf("Couldn't create the scale kernel: %d", err);
-      exit(1);
-   };
+  /* Set kernel arguments */
+  err  = clSetKernelArg(init_kernel, 0, sizeof(cl_mem), &input_buffer);
+  err |= clSetKernelArg(init_kernel, 1, sizeof(cl_mem), &data_buffer);
+  err |= clSetKernelArg(init_kernel, 2, local_mem_size, NULL);
+  err |= clSetKernelArg(init_kernel, 3, sizeof(points_per_group), &points_per_group);
+  err |= clSetKernelArg(init_kernel, 4, sizeof(num_points), &num_points);
+  err |= clSetKernelArg(init_kernel, 5, sizeof(direction), &direction);                                                                handleError("Couldn't set a kernel argument.");
 
-   /* Create input buffer */
-   input_buffer = clCreateBuffer(context, 
-         CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, 
-         2*NUM_POINTS*sizeof(float), data, &err);
-   if(err < 0) {
-      printf("Couldn't create a buffer: %d\n", err);
-      exit(1);
-   };
+  /* Create a command queue */
+  cl_queue_properties properties[] = {CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0};
+  cl_command_queue queue = clCreateCommandQueueWithProperties(context, device, properties, &err);                                      handleError("Couldn't create a command queue.");
 
-   /* Create data buffer */
-   data_buffer = clCreateBuffer(context, 
-         CL_MEM_READ_WRITE, 2*NUM_POINTS*sizeof(float), 
-         NULL, &err);
-   if(err < 0) {
-      printf("Couldn't create a buffer: %d\n", err);
-      exit(1);
-   };
+  /* Enqueue initial kernel */
+  size_t global_size = (num_points / points_per_group) * local_size;
+  err = clEnqueueNDRangeKernel(queue, init_kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                                 handleError("Couldn't enqueue the initial kernel.");
 
-   /* Determine maximum work-group size */
-   err = clGetKernelWorkGroupInfo(init_kernel, device, 
-      CL_KERNEL_WORK_GROUP_SIZE, sizeof(local_size), &local_size, NULL);
-   if(err < 0) {
-      perror("Couldn't find the maximum work-group size");
-      exit(1);   
-   };
-   local_size = (int)pow(2, trunc(log2(local_size)));
+  /* Enqueue further stages of the FFT */
+  if (num_points > points_per_group) {
+    err = clSetKernelArg(stage_kernel, 0, sizeof(cl_mem), &data_buffer);
+    err |= clSetKernelArg(stage_kernel, 2, sizeof(points_per_group), &points_per_group);
+    err |= clSetKernelArg(stage_kernel, 3, sizeof(direction), &direction);                                                             handleError("Couldn't set a kernel argument.");
 
-   /* Determine local memory size */
-   err = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, 
-      sizeof(local_mem_size), &local_mem_size, NULL);
-   if(err < 0) {
-      perror("Couldn't determine the local memory size");
-      exit(1);   
-   };
+    for (unsigned stage = 2; stage <= num_points / points_per_group; stage <<= 1) {
+      err = clSetKernelArg(stage_kernel, 1, sizeof(stage), &stage);
+      handleError("Couldn't set a kernel argument.");
+      err = clEnqueueNDRangeKernel(queue, stage_kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                            handleError("Couldn't enqueue the stage kernel");
+    }
+  }
 
-   /* Initialize kernel arguments */
-   direction = DIRECTION;
-   num_points = NUM_POINTS;
-   points_per_group = local_mem_size/(2*sizeof(float));
-   if(points_per_group > num_points)
-      points_per_group = num_points;
+  /* Scale values if performing the inverse FFT */
+  if (direction < 0) {
+    err = clSetKernelArg(scale_kernel, 0, sizeof(cl_mem), &data_buffer);
+    err |= clSetKernelArg(scale_kernel, 1, sizeof(points_per_group), &points_per_group);
+    err |= clSetKernelArg(scale_kernel, 2, sizeof(num_points), &num_points);                                                           handleError("Couldn't set a kernel argument.");
+    err = clEnqueueNDRangeKernel(queue, scale_kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);                              handleError("Couldn't enqueue the scale kernel");
+  }
 
-   /* Set kernel arguments */
-   err = clSetKernelArg(init_kernel, 0, sizeof(cl_mem), &input_buffer);
-   err |= clSetKernelArg(init_kernel, 1, sizeof(cl_mem), &data_buffer);
-   err |= clSetKernelArg(init_kernel, 2, local_mem_size, NULL);
-   err |= clSetKernelArg(init_kernel, 3, sizeof(points_per_group), &points_per_group);
-   err |= clSetKernelArg(init_kernel, 4, sizeof(num_points), &num_points);
-   err |= clSetKernelArg(init_kernel, 5, sizeof(direction), &direction);
-   if(err < 0) {
-      printf("Couldn't set a kernel argument");
-      exit(1);   
-   };
+  /* Read the results */
+  err = clEnqueueReadBuffer(queue, data_buffer, CL_TRUE, 0, 2 * NUM_POINTS * sizeof(float), data, 0, NULL, NULL);                      handleError("Couldn't read the buffer.");
+  // clang-format on
 
-   /* Create a command queue */
-   queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
-   if(err < 0) {
-      perror("Couldn't create a command queue");
-      exit(1);   
-   };
+  /* Compute accurate values */
+  double check_output[NUM_POINTS][2];
+  if (direction > 0) {
+    fft(NUM_POINTS, check_input, check_output);
+  } else {
+    ifft(NUM_POINTS, check_output, check_input);
+  }
 
-   /* Enqueue initial kernel */
-   global_size = (num_points/points_per_group)*local_size;
-   err = clEnqueueNDRangeKernel(queue, init_kernel, 1, NULL, &global_size, 
-                                &local_size, 0, NULL, NULL); 
-   if(err < 0) {
-      perror("Couldn't enqueue the initial kernel");
-      exit(1);
-   }
+  double error = 0.0;
+  for (int i = 0; i < NUM_POINTS; i++) {
+    error += fabs(check_output[i][0] - data[2 * i]) / fmax(fabs(check_output[i][0]), 0.0001);
+    error += fabs(check_output[i][1] - data[2 * i + 1]) / fmax(fabs(check_output[i][1]), 0.0001);
+  }
+  error = error / (NUM_POINTS * 2);
 
-   /* Enqueue further stages of the FFT */
-   if(num_points > points_per_group) {
+  printf("%u-point ", num_points);
+  if (direction > 0) {
+    printf("FFT ");
+  } else {
+    printf("IFFT ");
+  }
+  printf("completed with %f average relative error.\n", error);
 
-      err = clSetKernelArg(stage_kernel, 0, sizeof(cl_mem), &data_buffer);
-      err |= clSetKernelArg(stage_kernel, 2, sizeof(points_per_group), &points_per_group);
-      err |= clSetKernelArg(stage_kernel, 3, sizeof(direction), &direction);
-      if(err < 0) {
-         printf("Couldn't set a kernel argument");
-         exit(1);   
-      };
-      for(stage = 2; stage <= num_points/points_per_group; stage <<= 1) {
-         clSetKernelArg(stage_kernel, 1, sizeof(stage), &stage);
-         err = clEnqueueNDRangeKernel(queue, stage_kernel, 1, NULL, &global_size, 
-                                      &local_size, 0, NULL, NULL); 
-         if(err < 0) {
-            perror("Couldn't enqueue the stage kernel");
-            exit(1);
-         }
-      }
-   }
-
-   /* Scale values if performing the inverse FFT */
-   if(direction < 0) {
-      err = clSetKernelArg(scale_kernel, 0, sizeof(cl_mem), &data_buffer);
-      err |= clSetKernelArg(scale_kernel, 1, sizeof(points_per_group), &points_per_group);
-      err |= clSetKernelArg(scale_kernel, 2, sizeof(num_points), &num_points);
-      if(err < 0) {
-         printf("Couldn't set a kernel argument");
-         exit(1);   
-      };
-      err = clEnqueueNDRangeKernel(queue, scale_kernel, 1, NULL, &global_size, 
-                                   &local_size, 0, NULL, NULL); 
-      if(err < 0) {
-         perror("Couldn't enqueue the initial kernel");
-         exit(1);
-      }
-   }
-
-   /* Read the results */
-   err = clEnqueueReadBuffer(queue, data_buffer, CL_TRUE, 0, 
-         2*NUM_POINTS*sizeof(float), data, 0, NULL, NULL);
-   if(err < 0) {
-      perror("Couldn't read the buffer");
-      exit(1);   
-   }
-
-   /* Compute accurate values */
-   if(direction > 0)
-      fft(NUM_POINTS, check_input, check_output);
-   else
-      ifft(NUM_POINTS, check_output, check_input);
-
-   /* Determine error */
-   error = 0.0;
-   for(i=0; i<NUM_POINTS; i++) {
-      error += fabs(check_output[i][0] - data[2*i])/fmax(fabs(check_output[i][0]), 0.0001);
-      error += fabs(check_output[i][1] - data[2*i+1])/fmax(fabs(check_output[i][1]), 0.0001);
-   }
-   error = error/(NUM_POINTS*2);
-
-   /* Display check results */
-   printf("%u-point ", num_points);
-   if(direction > 0) 
-      printf("FFT ");
-   else
-      printf("IFFT ");
-   printf("completed with %lf average relative error.\n", error);
-
-   /* Deallocate resources */
-   clReleaseMemObject(input_buffer);
-   clReleaseMemObject(data_buffer);
-   clReleaseKernel(init_kernel);
-   clReleaseKernel(stage_kernel);
-   clReleaseKernel(scale_kernel);
-   clReleaseCommandQueue(queue);
-   clReleaseProgram(program);
-   clReleaseContext(context);
-   return 0;
+  clReleaseMemObject(input_buffer);
+  clReleaseMemObject(data_buffer);
+  clReleaseKernel(init_kernel);
+  clReleaseKernel(stage_kernel);
+  clReleaseKernel(scale_kernel);
+  clReleaseCommandQueue(queue);
+  clReleaseProgram(program);
+  clReleaseContext(context);
 }

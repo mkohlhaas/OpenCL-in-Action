@@ -77,8 +77,8 @@ int main(void) {
   }
 
   // clang-format off
-  cl_device_id device = create_device();
-  cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                             handleError("Couldn't create a context.");
+  cl_device_id device  = create_device();
+  cl_context   context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);                                                           handleError("Couldn't create a context.");
 
   cl_program program = build_program(context, device, PROGRAM_FILE);
 
