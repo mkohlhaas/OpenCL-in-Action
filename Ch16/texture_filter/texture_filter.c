@@ -1,3 +1,4 @@
+#include <CL/cl.h>
 #define PROGRAM_FILE "texture_filter.cl"
 #define KERNEL_FUNC "texture_filter"
 #define VERTEX_SHADER "texture_filter.vert"
@@ -10,18 +11,9 @@
 #include <GL/glew.h>
 #include <stdio.h>
 
-#ifdef MAC
-#include <GLUT/freeglut.h>
-#include <OpenCL/cl_gl.h>
-#include <OpenGL/OpenGL.h>
-#define GL_SHARING_EXTENSION "cl_APPLE_gl_sharing"
-
-#else
 #include <CL/cl_gl.h>
 #include <GL/freeglut.h>
 #include <GL/glx.h>
-#define GL_SHARING_EXTENSION "cl_khr_gl_sharing"
-#endif
 
 cl_platform_id platform;
 cl_device_id device;
@@ -119,12 +111,6 @@ void init_cl() {
   }
 
   /* Create OpenCL context properties */
-#ifdef MAC
-  CGLContextObj mac_context = CGLGetCurrentContext();
-  CGLShareGroupObj group = CGLGetShareGroup(mac_context);
-  cl_context_properties properties[] = {CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE, (cl_context_properties)group, 0};
-#else
-#ifdef UNIX
   cl_context_properties properties[] = {CL_GL_CONTEXT_KHR,
                                         (cl_context_properties)glXGetCurrentContext(),
                                         CL_GLX_DISPLAY_KHR,
@@ -132,17 +118,6 @@ void init_cl() {
                                         CL_CONTEXT_PLATFORM,
                                         (cl_context_properties)platform,
                                         0};
-#else
-  cl_context_properties properties[] = {CL_GL_CONTEXT_KHR,
-                                        (cl_context_properties)wglGetCurrentContext(),
-                                        CL_WGL_HDC_KHR,
-                                        (cl_context_properties)wglGetCurrentDC(),
-                                        CL_CONTEXT_PLATFORM,
-                                        (cl_context_properties)platform,
-                                        0};
-#endif
-#endif
-
   /* Create context */
   context = clCreateContext(properties, 1, &device, NULL, NULL, &err);
   if (err < 0) {
@@ -174,7 +149,7 @@ void init_cl() {
   }
 
   /* Create a command queue */
-  queue = clCreateCommandQueue(context, device, 0, &err);
+  queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
   if (err < 0) {
     perror("Couldn't create a command queue");
     exit(1);
@@ -432,6 +407,4 @@ int main(int argc, char *argv[]) {
 
   /* Deallocate OpenGL resources */
   glDeleteBuffers(2, vbo);
-
-  return 0;
 }
